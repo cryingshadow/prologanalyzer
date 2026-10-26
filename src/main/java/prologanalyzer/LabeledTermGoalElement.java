@@ -1,0 +1,37 @@
+package prologanalyzer;
+
+import prologparser.*;
+
+public record LabeledTermGoalElement(PrologTerm term, PrologClause clause) implements GoalElement {
+
+    @Override
+    public PrologClause getClause() {
+        return this.clause();
+    }
+
+    @Override
+    public int getScope() {
+        return -1;
+    }
+
+    @Override
+    public PrologTerm getTerm() {
+        return this.term();
+    }
+
+    @Override
+    public boolean hasClause() {
+        return true;
+    }
+
+    @Override
+    public boolean hasTerm() {
+        return true;
+    }
+
+    @Override
+    public boolean isScopeMarker() {
+        return false;
+    }
+
+}
