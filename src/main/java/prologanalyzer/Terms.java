@@ -8,6 +8,16 @@ import prologparser.*;
 
 public abstract class Terms {
 
+    public static Optional<PrologSubstitution> computeMGU(
+        final PrologTerm term1,
+        final PrologTerm term2,
+        final FreshNameGenerator fridge,
+        final KnowledgeBase knowledge
+    ) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
     public static Set<PrologAbstractVariable> createSetOfAllAbstractVariables(final PrologTerm term) {
         return Terms.createSetOfAllOccurrences(t -> Terms.isAbstractVariable(t), term);
     }
@@ -72,6 +82,16 @@ public abstract class Terms {
 
     public static boolean isVariable(final PrologTerm term) {
         return term instanceof PrologVariable;
+    }
+
+    public static PrologTerm removeFirstConjunct(final PrologTerm term) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public static PrologTerm replaceFirstConjunct(final PrologTerm term, final PrologTerm newFirstConjunct) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
     public static String toLaTeX(final PrologTerm term, final KnowledgeBase knowledge) {

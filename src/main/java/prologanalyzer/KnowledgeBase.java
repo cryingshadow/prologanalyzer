@@ -10,4 +10,14 @@ public record KnowledgeBase(
     Set<PrologVariable> free
 ) {
 
+    public KnowledgeBase apply(final PrologSubstitution sigma) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public KnowledgeBase addNonUnification(final PrologTerm term1, final PrologTerm term2) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }
