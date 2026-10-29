@@ -9,26 +9,26 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
     private static final long serialVersionUID = 1L;
 
     public static PrologSubstitution appendIfCommutativeNonAbstractRenaming(
-        final PrologSubstitution sigma1,
-        final PrologSubstitution sigma2
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2
     ) {
-        if (sigma1 != null && sigma2 != null) {
+        if (substitution1 != null && substitution2 != null) {
             final PrologSubstitution res = new PrologSubstitution();
-            for (final Map.Entry<PrologVariable, PrologTerm> entry : sigma1.entrySet()) {
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution1.entrySet()) {
                 if (Terms.isAbstractVariable(entry.getKey()) || !Terms.isNonAbstractVariable(entry.getValue())) {
                     return null;
-                } else if (sigma2.containsKey(entry.getKey())) {
-                    if (!entry.getValue().equals(sigma2.get(entry.getKey()))) {
+                } else if (substitution2.containsKey(entry.getKey())) {
+                    if (!entry.getValue().equals(substitution2.get(entry.getKey()))) {
                         return null;
                     }
                 }
                 res.put(entry.getKey(), entry.getValue());
             }
-            for (final Map.Entry<PrologVariable, PrologTerm> entry : sigma2.entrySet()) {
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution2.entrySet()) {
                 if (Terms.isAbstractVariable(entry.getKey()) || !Terms.isNonAbstractVariable(entry.getValue())) {
                     return null;
-                } else if (sigma1.containsKey(entry.getKey())) {
-                    if (!entry.getValue().equals(sigma1.get(entry.getKey()))) {
+                } else if (substitution1.containsKey(entry.getKey())) {
+                    if (!entry.getValue().equals(substitution1.get(entry.getKey()))) {
                         return null;
                     }
                 }
@@ -41,40 +41,42 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
     }
 
     public static PrologSubstitution appendIfCommutativeVariableRenaming(
-        final PrologSubstitution sigma1,
-        final PrologSubstitution sigma2
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2
     ) {
-        if (sigma1 != null && sigma2 != null) {
-            final PrologSubstitution res1 = PrologSubstitution.appendIfConsistentVariableRenaming(sigma1, sigma2);
-            if (res1 == null) {
+        if (substitution1 != null && substitution2 != null) {
+            final PrologSubstitution result1 =
+                PrologSubstitution.appendIfConsistentVariableRenaming(substitution1, substitution2);
+            if (result1 == null) {
                 return null;
             }
-            final PrologSubstitution res2 = PrologSubstitution.appendIfConsistentVariableRenaming(sigma2, sigma1);
-            if (res2 != null && res1.equals(res2)) {
-                return res1;
+            final PrologSubstitution result2 =
+                PrologSubstitution.appendIfConsistentVariableRenaming(substitution2, substitution1);
+            if (result2 != null && result1.equals(result2)) {
+                return result1;
             }
         }
         return null;
     }
 
     private static PrologSubstitution appendIfConsistentVariableRenaming(
-        final PrologSubstitution sigma1,
-        final PrologSubstitution sigma2
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2
     ) {
         final PrologSubstitution res = new PrologSubstitution();
-        for (final Map.Entry<PrologVariable, PrologTerm> entry : sigma1.entrySet()) {
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution1.entrySet()) {
             final PrologVariable key = entry.getKey();
             final PrologTerm value = entry.getValue();
             if (Terms.isAbstractVariable(key) || !Terms.isNonAbstractVariable(value)) {
                 if (Terms.isNonAbstractVariable(key) || !Terms.isAbstractVariable(value)) {
                     return null;
-                } else if (sigma2.containsKey(key)) {
-                    if (!value.equals(sigma2.get(key))) {
+                } else if (substitution2.containsKey(key)) {
+                    if (!value.equals(substitution2.get(key))) {
                         return null;
                     }
                 }
-            } else if (sigma2.containsKey(key)) {
-                if (!value.equals(sigma2.get(key))) {
+            } else if (substitution2.containsKey(key)) {
+                if (!value.equals(substitution2.get(key))) {
                     return null;
                 }
             }
@@ -145,6 +147,24 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
             res.addAll(Terms.createSetOfAllVariables(term));
         }
         return res;
+    }
+
+    public boolean hasPotentialUnificationConflict() {
+        final Set<PrologAbstractVariable> used = new LinkedHashSet<PrologAbstractVariable>();
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : this.entrySet()) {
+            if (Terms.isAbstractVariable(entry.getKey())) {
+                if (Terms.isAbstractVariable(entry.getValue())) {
+                    if (used.contains(entry.getValue())) {
+                        return true;
+                    } else {
+                        used.add((PrologAbstractVariable) entry.getValue());
+                    }
+                } else {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public PrologSubstitution restrict(final Set<? extends PrologVariable> set) {

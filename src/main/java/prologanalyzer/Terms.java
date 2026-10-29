@@ -8,6 +8,10 @@ import prologparser.*;
 
 public abstract class Terms {
 
+    public static final String DEFAULT_ABSTRACT_VARIABLE_NAME = "T";
+
+    public static final String DEFAULT_NON_ABSTRACT_VARIABLE_NAME = "X";
+
     public static Optional<PrologSubstitution> computeMGU(
         final PrologTerm term1,
         final PrologTerm term2,
@@ -76,12 +80,61 @@ public abstract class Terms {
         return Terms.getArity(term) == 0 && "[]".equals(term.name);
     }
 
+    public static boolean isGoalJunctor(final PrologTerm term) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
     public static boolean isNonAbstractVariable(final PrologTerm term) {
         return Terms.isVariable(term) && !Terms.isAbstractVariable(term);
     }
 
     public static boolean isVariable(final PrologTerm term) {
         return term instanceof PrologVariable;
+    }
+
+    public static AbstractState parseQuery(final PrologProgram program, final FreshNameGenerator fridge) {
+        for (final String comment : program.comments()) {
+            if (comment.startsWith("%query: ")) {
+                return Terms.parseQuery(comment.substring(8), fridge);
+            }
+        }
+        return null;
+    }
+
+    public static AbstractState parseQuery(final String query, final FreshNameGenerator fridge) {
+        final int indexOpen = query.indexOf('(');
+        if (indexOpen < 0) {
+            return new AbstractState(
+                List.of(new TermGoalElement(new PrologTerm(query, List.of()))),
+                new KnowledgeBase()
+            );
+        }
+        final String[] argumentStrings = query.substring(indexOpen + 1, query.indexOf(')')).split(",");
+        KnowledgeBase knowledge = new KnowledgeBase();
+        final List<PrologTerm> arguments = new ArrayList<PrologTerm>();
+        for (final String argument : argumentStrings) {
+            final PrologAbstractVariable variable =
+                new PrologAbstractVariable(fridge.getFreshName(Terms.DEFAULT_ABSTRACT_VARIABLE_NAME));
+            arguments.add(variable);
+            switch (argument.strip().toLowerCase()) {
+            case "g":
+            case "i":
+            case "b":
+                knowledge = knowledge.setGround(variable);
+                break;
+            case "a":
+            case "o":
+            case "f":
+                break;
+            default:
+                throw new IllegalArgumentException("Could not parse query!");
+            }
+        }
+        return new AbstractState(
+            List.of(new TermGoalElement(new PrologTerm(query.substring(0, indexOpen), arguments))),
+            knowledge
+        );
     }
 
     public static PrologTerm removeFirstConjunct(final PrologTerm term) {
@@ -123,6 +176,25 @@ public abstract class Terms {
             );
         }
         return res.toString();
+    }
+
+    public static PrologTerm transformWithScope(final PrologTerm term, final int scope) {
+        if (term == null) {
+            return null;
+        }
+        if (Terms.isGoalJunctor(term)) {
+            return new PrologTerm(
+                term.name,
+                term.arguments.stream().map(argument -> Terms.transformWithScope(argument, scope)).toList()
+            );
+        }
+        if (Terms.isNonAbstractVariable(term)) {
+            return new PrologTerm("call", List.of(term));
+        }
+        if (Terms.isCut(term)) {
+            return new LabeledCut(scope);
+        }
+        return term;
     }
 
 }

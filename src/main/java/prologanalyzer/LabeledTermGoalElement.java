@@ -2,7 +2,7 @@ package prologanalyzer;
 
 import prologparser.*;
 
-public record LabeledTermGoalElement(PrologTerm term, PrologClause clause) implements GoalElement {
+public record LabeledTermGoalElement(PrologTerm term, PrologClause clause, int scope) implements GoalElement {
 
     @Override
     public PrologClause getClause() {
@@ -11,7 +11,7 @@ public record LabeledTermGoalElement(PrologTerm term, PrologClause clause) imple
 
     @Override
     public int getScope() {
-        return -1;
+        return this.scope();
     }
 
     @Override
