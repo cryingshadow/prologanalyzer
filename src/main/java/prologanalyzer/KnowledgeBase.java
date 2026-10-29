@@ -7,7 +7,7 @@ import prologparser.*;
 
 public record KnowledgeBase(
     Set<PrologAbstractVariable> ground,
-    Set<NonUnifiablePair> nonUnifiable,
+    Set<TermPair> nonUnifiable,
     Set<PrologVariable> free
 ) {
 
@@ -29,8 +29,8 @@ public record KnowledgeBase(
     }
 
     public KnowledgeBase addNonUnification(final PrologTerm term1, final PrologTerm term2) {
-        final Set<NonUnifiablePair> nonUnifiable = new TreeSet<NonUnifiablePair>(this.nonUnifiable());
-        nonUnifiable.add(new NonUnifiablePair(term1, term2));
+        final Set<TermPair> nonUnifiable = new TreeSet<TermPair>(this.nonUnifiable());
+        nonUnifiable.add(new TermPair(term1, term2));
         return new KnowledgeBase(this.ground(), nonUnifiable, this.free());
     }
 

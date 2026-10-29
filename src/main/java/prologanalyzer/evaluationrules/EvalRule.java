@@ -15,7 +15,8 @@ public class EvalRule implements SymbolicEvaluationRule {
         }
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
-            Terms.computeMGU(firstConjunct, firstGoal.getClause().head(), fridge, state.knowledge());
+            Terms.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
+        //TODO check knowledge
         if (optionalMGU.isEmpty()) {
             return List.of();
         }
