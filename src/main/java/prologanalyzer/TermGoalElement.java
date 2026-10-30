@@ -34,4 +34,9 @@ public record TermGoalElement(PrologTerm term) implements GoalElement {
         return this.term();
     }
 
+    @Override
+    public TermGoalElement apply(final PrologSubstitution substitution) {
+        return new TermGoalElement(substitution.apply(this.term()));
+    }
+
 }

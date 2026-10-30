@@ -4,6 +4,8 @@ import prologparser.*;
 
 public interface GoalElement {
 
+    GoalElement apply(PrologSubstitution substitution);
+
     PrologClause getClause();
 
     int getScope();

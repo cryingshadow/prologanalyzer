@@ -23,22 +23,40 @@ public class EvalRule implements SymbolicEvaluationRule {
         if (!mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
             return List.of();
         }
+        final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
+        final PrologSubstitution mguWithAdditionalRenamings =
+            state.knowledge().addRenamings(mgu, firstConjunct, firstGoal.getClause());
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<AbstractState> result = new ArrayList<AbstractState>();
+        final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
-            final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
-            newGoal.set(0, new TermGoalElement(Terms.removeFirstConjunct(firstGoal.getTerm())));
-            result.add(new AbstractState(newGoal, state.knowledge().apply(mgu)));
+            newGoalEval.add(
+                new TermGoalElement(mguWithAdditionalRenamings.apply(Terms.removeFirstConjunct(firstGoal.getTerm())))
+            );
         } else {
-            final PrologTerm newFirstConjunct = mgu.apply(body.get());
-            final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
-            newGoal.set(0, new TermGoalElement(Terms.replaceFirstConjunct(firstGoal.getTerm(), newFirstConjunct)));
-            result.add(new AbstractState(newGoal, state.knowledge().apply(mgu)));
+            newGoalEval.add(
+                new TermGoalElement(
+                    mguWithAdditionalRenamings.apply(
+                        Terms.replaceFirstConjunct(
+                            firstGoal.getTerm(),
+                            Terms.transformWithScope(body.get(), firstGoal.getScope())
+                        )
+                    )
+                )
+            );
         }
-        final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
-        newGoal.remove(0);
+        newGoalEval.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
+        result.add(new AbstractState(newGoalEval, state.knowledge().apply(mgu, firstGoal.getClause())));
+        final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal());
+        newGoalBacktrack.remove(0);
         result.add(
-            new AbstractState(newGoal, state.knowledge().addNonUnification(firstConjunct, firstGoal.getClause().head()))
+            new AbstractState(
+                newGoalBacktrack,
+                state
+                .knowledge()
+                .addNonUnification(firstConjunct, firstGoal.getClause().head())
+                .addFree(Terms.createSetOfAllNonAbstractVariables(firstGoal.getClause().head()))
+            )
         );
         return result;
     }

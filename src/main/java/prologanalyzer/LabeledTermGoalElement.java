@@ -34,4 +34,16 @@ public record LabeledTermGoalElement(PrologTerm term, PrologClause clause, int s
         return false;
     }
 
+    @Override
+    public LabeledTermGoalElement apply(final PrologSubstitution substitution) {
+        return new LabeledTermGoalElement(
+            substitution.apply(this.term()),
+            new PrologClause(
+                substitution.apply(this.clause().head()),
+                this.clause().body().map(b -> substitution.apply(b))
+            ),
+            this.scope()
+        );
+    }
+
 }

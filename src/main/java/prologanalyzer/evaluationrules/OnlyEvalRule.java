@@ -23,17 +23,29 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         if (mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
             return List.of();
         }
+        final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
+        final PrologSubstitution mguWithAdditionalRenamings =
+            state.knowledge().addRenamings(mgu, firstConjunct, firstGoal.getClause());
         final Optional<PrologTerm> body = firstGoal.getClause().body();
+        final List<GoalElement> newGoal = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
-            final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
-            newGoal.set(0, new TermGoalElement(Terms.removeFirstConjunct(firstGoal.getTerm())));
-            return List.of(new AbstractState(newGoal, state.knowledge().apply(mgu)));
+            newGoal.add(
+                new TermGoalElement(mguWithAdditionalRenamings.apply(Terms.removeFirstConjunct(firstGoal.getTerm())))
+            );
         } else {
-            final PrologTerm newFirstConjunct = mgu.apply(body.get());
-            final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
-            newGoal.set(0, new TermGoalElement(Terms.replaceFirstConjunct(firstGoal.getTerm(), newFirstConjunct)));
-            return List.of(new AbstractState(newGoal, state.knowledge().apply(mgu)));
+            newGoal.add(
+                new TermGoalElement(
+                    mguWithAdditionalRenamings.apply(
+                        Terms.replaceFirstConjunct(
+                            firstGoal.getTerm(),
+                            Terms.transformWithScope(body.get(), firstGoal.getScope())
+                        )
+                    )
+                )
+            );
         }
+        newGoal.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
+        return List.of(new AbstractState(newGoal, state.knowledge().apply(mgu, firstGoal.getClause())));
     }
 
 }

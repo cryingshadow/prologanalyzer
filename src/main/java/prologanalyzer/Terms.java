@@ -134,7 +134,7 @@ public abstract class Terms {
             case "g":
             case "i":
             case "b":
-                knowledge = knowledge.setGround(variable);
+                knowledge = knowledge.addGround(variable);
                 break;
             case "a":
             case "o":

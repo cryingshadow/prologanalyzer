@@ -34,4 +34,9 @@ public record ScopeMarker(int scope) implements GoalElement {
         return true;
     }
 
+    @Override
+    public ScopeMarker apply(final PrologSubstitution substitution) {
+        return this;
+    }
+
 }
