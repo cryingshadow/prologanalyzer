@@ -21,13 +21,10 @@ public class BacktrackRule implements SymbolicEvaluationRule {
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
             MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
-        //TODO check knowledge
-        if (optionalMGU.isPresent()) {
+        if (optionalMGU.isPresent() && state.knowledge().isCompatibleWithNonUnification(optionalMGU.get())) {
             return List.of();
         }
-        return List.of(
-            new AbstractState(newGoal, state.knowledge().addNonUnification(firstConjunct, firstGoal.getClause().head()))
-        );
+        return List.of(new AbstractState(newGoal, state.knowledge()));
     }
 
 }

@@ -16,11 +16,13 @@ public class EvalRule implements SymbolicEvaluationRule {
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
             MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
-        //TODO check knowledge
         if (optionalMGU.isEmpty()) {
             return List.of();
         }
         final PrologSubstitution mgu = optionalMGU.get();
+        if (!mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
+            return List.of();
+        }
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<AbstractState> result = new ArrayList<AbstractState>();
         if (body.isEmpty()) {
@@ -32,9 +34,6 @@ public class EvalRule implements SymbolicEvaluationRule {
             final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
             newGoal.set(0, new TermGoalElement(Terms.replaceFirstConjunct(firstGoal.getTerm(), newFirstConjunct)));
             result.add(new AbstractState(newGoal, state.knowledge().apply(mgu)));
-        }
-        if (!mgu.hasPotentialUnificationConflict()) {
-            return List.of();
         }
         final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
         newGoal.remove(0);

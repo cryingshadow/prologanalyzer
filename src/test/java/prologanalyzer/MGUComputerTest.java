@@ -53,6 +53,21 @@ public class MGUComputerTest {
                 )
             },
             {
+                new PrologTerm("f", List.of(new PrologAbstractVariable("T"))),
+                new PrologTerm("f", List.of(new PrologTerm("f", List.of(new PrologVariable("X"))))),
+                false,
+                Optional.of(
+                    new PrologSubstitution(
+                        Map.of(
+                            new PrologAbstractVariable("T"),
+                            new PrologTerm("f", List.of(new PrologAbstractVariable("T1"))),
+                            new PrologVariable("X"),
+                            new PrologAbstractVariable("T1")
+                        )
+                    )
+                )
+            },
+            {
                 new PrologTerm("f", List.of(new PrologVariable("X"))),
                 new PrologTerm("f", List.of(new PrologTerm("f", List.of(new PrologVariable("X"))))),
                 true,

@@ -75,8 +75,15 @@ public abstract class Terms {
     }
 
     public static boolean isGoalJunctor(final PrologTerm term) {
-        // TODO Auto-generated method stub
-        return false;
+        switch (term.name) {
+        case ",":
+            return true;
+        case ";":
+        case "->":
+            return Terms.getArity(term) == 2;
+        default:
+            return false;
+        }
     }
 
     public static boolean isNonAbstractVariable(final PrologTerm term) {
@@ -144,7 +151,23 @@ public abstract class Terms {
     }
 
     public static PrologTerm removeFirstConjunct(final PrologTerm term) {
-        // TODO Auto-generated method stub
+        if (Terms.isConjunction(term)) {
+            final PrologTerm first = term.arguments.getFirst();
+            if (Terms.isConjunction(first)) {
+                final List<PrologTerm> arguments = new ArrayList<PrologTerm>();
+                arguments.add(Terms.removeFirstConjunct(first));
+                arguments.addAll(term.arguments.stream().skip(1).toList());
+                return new PrologTerm(",", arguments);
+            }
+            final int arity = Terms.getArity(term);
+            if (arity == 2) {
+                return term.arguments.getLast();
+            }
+            if (arity == 1) {
+                return null;
+            }
+            return new PrologTerm(",", term.arguments.stream().skip(1).toList());
+        }
         return null;
     }
 
@@ -177,8 +200,26 @@ public abstract class Terms {
     }
 
     public static PrologTerm replaceFirstConjunct(final PrologTerm term, final PrologTerm newFirstConjunct) {
-        // TODO Auto-generated method stub
-        return null;
+        if (Terms.isConjunction(term)) {
+            final PrologTerm first = term.arguments.getFirst();
+            if (Terms.isConjunction(first)) {
+                final List<PrologTerm> arguments = new ArrayList<PrologTerm>();
+                arguments.add(Terms.replaceFirstConjunct(first, newFirstConjunct));
+                arguments.addAll(term.arguments.stream().skip(1).toList());
+                return new PrologTerm(",", arguments);
+            }
+            final int arity = Terms.getArity(term);
+            if (arity == 2) {
+                return new PrologTerm(",", List.of(newFirstConjunct, term.arguments.getLast()));
+            }
+            if (arity == 1) {
+                return newFirstConjunct;
+            }
+            final List<PrologTerm> arguments = new ArrayList<PrologTerm>(term.arguments);
+            arguments.set(0, newFirstConjunct);
+            return new PrologTerm(",", arguments);
+        }
+        return newFirstConjunct;
     }
 
     public static String toLaTeX(final PrologTerm term, final KnowledgeBase knowledge) {

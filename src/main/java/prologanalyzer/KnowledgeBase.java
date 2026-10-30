@@ -40,4 +40,29 @@ public record KnowledgeBase(
         return new KnowledgeBase(newGround, this.nonUnifiable(), this.free());
     }
 
+    public boolean isCompatibleWithNonUnification(final PrologSubstitution substitution) {
+        final PrologSubstitution restricted = this.restrictToGround(substitution);
+        for (final TermPair pair : this.nonUnifiable()) {
+            final Optional<PrologSubstitution> optionalMGU =
+                MGUComputer.computeMGUWithOnlyFreshVariables(
+                    restricted.apply(pair.term1()),
+                    restricted.apply(pair.term2()),
+                    new FreshNameGenerator()
+                );
+            if (optionalMGU.isPresent()) {
+                final PrologSubstitution mgu = optionalMGU.get();
+                if (mgu.isIdempotent() && mgu.keySet().stream().allMatch(Terms::isNonAbstractVariable)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public PrologSubstitution restrictToGround(final PrologSubstitution substitution) {
+        final PrologSubstitution result = new PrologSubstitution(substitution);
+        result.keySet().retainAll(this.ground());
+        return result;
+    }
+
 }

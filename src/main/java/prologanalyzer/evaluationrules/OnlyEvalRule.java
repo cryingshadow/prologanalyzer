@@ -16,12 +16,11 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
             MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
-        //TODO check knowledge
         if (optionalMGU.isEmpty()) {
             return List.of();
         }
         final PrologSubstitution mgu = optionalMGU.get();
-        if (mgu.hasPotentialUnificationConflict()) {
+        if (mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
             return List.of();
         }
         final Optional<PrologTerm> body = firstGoal.getClause().body();

@@ -167,6 +167,12 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
         return false;
     }
 
+    public boolean isIdempotent() {
+        final Set<PrologVariable> variablesInRange = this.getVariablesInRange();
+        variablesInRange.retainAll(this.keySet());
+        return variablesInRange.isEmpty();
+    }
+
     public PrologSubstitution restrict(final Set<? extends PrologVariable> set) {
         final PrologSubstitution res = new PrologSubstitution();
         for (final Map.Entry<PrologVariable, PrologTerm> entry : this.entrySet()) {
