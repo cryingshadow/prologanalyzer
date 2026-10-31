@@ -53,23 +53,60 @@ public class KnowledgeBase {
 
     public PrologSubstitution addRenamings(
         final PrologSubstitution mgu,
-        final PrologTerm term,
-        final PrologClause clause
+        final PrologTerm headOfConjunction,
+        final PrologTerm tailOfConjunction,
+        final PrologClause clause,
+        final FreshNameGenerator fridge
     ) {
-        // TODO Auto-generated method stub
-        return null;
+        if (this.ground.containsAll(Terms.createSetOfAllAbstractVariables(headOfConjunction))) {
+            if (this.free.containsAll(Terms.createSetOfAllNonAbstractVariables(headOfConjunction))) {
+                return mgu;
+            }
+            final Set<PrologAbstractVariable> newGround = this.computeGroundAfterSubstitution(mgu);
+            final Set<PrologVariable> toRename =
+                new LinkedHashSet<PrologVariable>(Terms.createSetOfAllAbstractVariables(tailOfConjunction));
+            if (clause.body().isPresent()) {
+                toRename.addAll(Terms.createSetOfAllAbstractVariables(clause.body().get()));
+            }
+            toRename.removeAll(newGround);
+            final PrologSubstitution renaming = new PrologSubstitution();
+            for (final PrologVariable variable : toRename) {
+                renaming.put(
+                    variable,
+                    new PrologAbstractVariable(fridge.getFreshName(Terms.DEFAULT_ABSTRACT_VARIABLE_NAME))
+                );
+            }
+            return mgu.append(renaming);
+        }
+        final Set<PrologAbstractVariable> newGround = this.computeGroundAfterSubstitution(mgu);
+        final Set<PrologVariable> newFree = this.computeFreeAfterUnification(mgu, clause);
+        final Set<PrologVariable> toRename =
+            new LinkedHashSet<PrologVariable>(Terms.createSetOfAllVariables(tailOfConjunction));
+        if (clause.body().isPresent()) {
+            toRename.addAll(Terms.createSetOfAllVariables(clause.body().get()));
+        }
+        toRename.removeAll(newGround);
+        toRename.removeAll(newFree);
+        final PrologSubstitution renaming = new PrologSubstitution();
+        for (final PrologVariable variable : toRename) {
+            renaming.put(
+                variable,
+                new PrologAbstractVariable(fridge.getFreshName(Terms.DEFAULT_ABSTRACT_VARIABLE_NAME))
+            );
+        }
+        return mgu.append(renaming);
     }
 
-    public KnowledgeBase apply(final PrologSubstitution substitution, final PrologClause clause) {
-        // TODO Auto-generated method stub
+    public KnowledgeBase apply(final PrologSubstitution mgu, final PrologClause clause) {
+        final PrologSubstitution mguOnGround = this.restrictToGround(mgu);
         return new KnowledgeBase(
+            this.computeGroundAfterSubstitution(mgu),
             this
-            .ground
+            .nonUnifiable
             .stream()
-            .flatMap(variable -> Terms.createSetOfAllAbstractVariables(substitution.apply(variable)).stream())
-            .collect(Collectors.toSet()),
-            null,
-            null
+            .map(pair -> new TermPair(mguOnGround.apply(pair.term1()), mguOnGround.apply(pair.term2())))
+            .collect(Collectors.toCollection(TreeSet::new)),
+            this.computeFreeAfterUnification(mgu, clause)
         );
     }
 
@@ -92,10 +129,49 @@ public class KnowledgeBase {
         return true;
     }
 
+    public PrologSubstitution restrictToFree(final PrologSubstitution substitution) {
+        return substitution.restrict(this.free);
+    }
+
     public PrologSubstitution restrictToGround(final PrologSubstitution substitution) {
-        final PrologSubstitution result = new PrologSubstitution(substitution);
-        result.keySet().retainAll(this.ground);
+        return substitution.restrict(this.ground);
+    }
+
+    private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu, final PrologClause clause) {
+        final Set<PrologVariable> result = new TreeSet<PrologVariable>(this.free);
+        final PrologSubstitution mguOnFree = this.restrictToFree(mgu);
+        final Set<PrologVariable> newFree = new LinkedHashSet<PrologVariable>(this.free);
+        newFree.addAll(Terms.createSetOfAllVariables(clause.head()));
+        final PrologSubstitution mguOnNonFreeNonAbstract = mgu.restrictToNonAbstractVariables().restrictToComplement(newFree);
+        final Set<PrologVariable> substituteVariables =
+            mguOnFree
+            .values()
+            .stream()
+            .flatMap(term -> Terms.createSetOfAllNonAbstractVariables(term).stream())
+            .collect(Collectors.toSet());
+        substituteVariables.removeAll(
+            mguOnNonFreeNonAbstract
+            .values()
+            .stream()
+            .flatMap(term -> Terms.createSetOfAllNonAbstractVariables(term).stream())
+            .collect(Collectors.toSet())
+        );
+        result.addAll(substituteVariables);
+        final Set<PrologVariable> headVariables = Terms.createSetOfAllVariables(clause.head());
+        if (clause.body().isPresent()) {
+            headVariables.removeAll(Terms.createSetOfAllVariables(clause.body().get()));
+        }
+        result.addAll(headVariables);
         return result;
+    }
+
+    private Set<PrologAbstractVariable> computeGroundAfterSubstitution(final PrologSubstitution substitution) {
+        return
+            this
+            .ground
+            .stream()
+            .flatMap(variable -> Terms.createSetOfAllAbstractVariables(substitution.apply(variable)).stream())
+            .collect(Collectors.toCollection(TreeSet::new));
     }
 
 }

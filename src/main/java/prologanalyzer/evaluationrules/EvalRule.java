@@ -14,6 +14,7 @@ public class EvalRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
+        final PrologTerm tailOfConjunction = Terms.removeFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
             MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
         if (optionalMGU.isEmpty()) {
@@ -25,14 +26,12 @@ public class EvalRule implements SymbolicEvaluationRule {
         }
         final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
-            state.knowledge().addRenamings(mgu, firstConjunct, firstGoal.getClause());
+            state.knowledge().addRenamings(mgu, firstConjunct, tailOfConjunction, firstGoal.getClause(), fridge);
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<AbstractState> result = new ArrayList<AbstractState>();
         final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
-            newGoalEval.add(
-                new TermGoalElement(mguWithAdditionalRenamings.apply(Terms.removeFirstConjunct(firstGoal.getTerm())))
-            );
+            newGoalEval.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
         } else {
             newGoalEval.add(
                 new TermGoalElement(
