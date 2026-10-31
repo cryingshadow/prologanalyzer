@@ -3,6 +3,7 @@ package prologanalyzer.evaluationrules;
 import java.util.*;
 
 import prologanalyzer.*;
+import prologanalyzer.structure.*;
 import prologparser.*;
 
 public class BacktrackRule implements SymbolicEvaluationRule {

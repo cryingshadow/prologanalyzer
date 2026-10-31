@@ -1,4 +1,4 @@
-package prologanalyzer;
+package prologanalyzer.structure;
 
 import java.math.*;
 import java.util.*;

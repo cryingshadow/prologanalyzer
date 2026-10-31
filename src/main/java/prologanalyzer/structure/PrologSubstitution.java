@@ -1,7 +1,8 @@
-package prologanalyzer;
+package prologanalyzer.structure;
 
 import java.util.*;
 
+import prologanalyzer.*;
 import prologparser.*;
 
 public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm> {

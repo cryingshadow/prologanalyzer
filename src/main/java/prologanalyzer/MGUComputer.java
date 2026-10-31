@@ -2,6 +2,7 @@ package prologanalyzer;
 
 import java.util.*;
 
+import prologanalyzer.structure.*;
 import prologparser.*;
 
 public class MGUComputer {

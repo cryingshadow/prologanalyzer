@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.testng.*;
 import org.testng.annotations.*;
 
+import prologanalyzer.structure.*;
 import prologparser.*;
 
 public class MGUComputerTest {

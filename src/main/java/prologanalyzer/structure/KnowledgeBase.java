@@ -1,8 +1,9 @@
-package prologanalyzer;
+package prologanalyzer.structure;
 
 import java.util.*;
 import java.util.stream.*;
 
+import prologanalyzer.*;
 import prologparser.*;
 
 public class KnowledgeBase {

@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.*;
 import java.util.stream.*;
 
+import prologanalyzer.structure.*;
 import prologparser.*;
 
 public abstract class Terms {
