@@ -9,7 +9,7 @@ import prologparser.*;
 public class EvalRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final FreshNameGenerator fridge) {
+    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
@@ -17,7 +17,7 @@ public class EvalRule implements SymbolicEvaluationRule {
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final PrologTerm tailOfConjunction = Terms.removeFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
-            MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
+            MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), global.fridge());
         if (optionalMGU.isEmpty()) {
             return List.of();
         }
@@ -27,7 +27,13 @@ public class EvalRule implements SymbolicEvaluationRule {
         }
         final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
-            state.knowledge().addRenamings(mgu, firstConjunct, tailOfConjunction, firstGoal.getClause(), fridge);
+            state.knowledge().addRenamings(
+                mgu,
+                firstConjunct,
+                tailOfConjunction,
+                firstGoal.getClause(),
+                global.fridge()
+            );
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<AbstractState> result = new ArrayList<AbstractState>();
         final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
@@ -59,6 +65,11 @@ public class EvalRule implements SymbolicEvaluationRule {
             )
         );
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "EVAL";
     }
 
 }

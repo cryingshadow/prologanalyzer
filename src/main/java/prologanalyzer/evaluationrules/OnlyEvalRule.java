@@ -9,7 +9,7 @@ import prologparser.*;
 public class OnlyEvalRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final FreshNameGenerator fridge) {
+    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
@@ -17,7 +17,7 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         final PrologTerm firstConjunct = Terms.getFirstConjunct(firstGoal.getTerm());
         final PrologTerm tailOfConjunction = Terms.removeFirstConjunct(firstGoal.getTerm());
         final Optional<PrologSubstitution> optionalMGU =
-            MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), fridge);
+            MGUComputer.computeMGUWithOnlyFreshVariables(firstConjunct, firstGoal.getClause().head(), global.fridge());
         if (optionalMGU.isEmpty()) {
             return List.of();
         }
@@ -27,7 +27,13 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         }
         final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
-            state.knowledge().addRenamings(mgu, firstConjunct, tailOfConjunction, firstGoal.getClause(), fridge);
+            state.knowledge().addRenamings(
+                mgu,
+                firstConjunct,
+                tailOfConjunction,
+                firstGoal.getClause(),
+                global.fridge()
+            );
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<GoalElement> newGoal = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
@@ -46,6 +52,11 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         }
         newGoal.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
         return List.of(new AbstractState(newGoal, state.knowledge().apply(mgu, firstGoal.getClause())));
+    }
+
+    @Override
+    public String toString() {
+        return "ONLY_EVAL";
     }
 
 }

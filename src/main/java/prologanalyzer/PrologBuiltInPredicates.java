@@ -2,6 +2,8 @@ package prologanalyzer;
 
 import java.util.*;
 
+import prologparser.*;
+
 public class PrologBuiltInPredicates extends LinkedHashMap<String, Integer> {
 
     public static final PrologBuiltInPredicates INSTANCE = new PrologBuiltInPredicates();
@@ -121,6 +123,10 @@ public class PrologBuiltInPredicates extends LinkedHashMap<String, Integer> {
         this.put("write_term", 3);
         this.put("writeq", 1);
         this.put("writeq", 2);
+    }
+
+    public boolean isBuiltInPredicate(final PrologTerm term) {
+        return this.containsKey(term.name) && Terms.getArity(term) == this.get(term.name);
     }
 
 }

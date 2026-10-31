@@ -5,7 +5,7 @@ import java.util.*;
 import prologanalyzer.structure.*;
 import prologparser.*;
 
-public class MGUComputer {
+public abstract class MGUComputer {
 
     private static final boolean PREFER_NON_ABSTRACT_REPLACEMENT = true;
 
