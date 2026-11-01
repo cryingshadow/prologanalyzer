@@ -60,11 +60,59 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
         return null;
     }
 
+    public static PrologSubstitution combineToConsistentVariableRenaming(
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2
+    ) {
+        if (substitution1 != null && substitution2 != null) {
+            final PrologSubstitution result = new PrologSubstitution();
+            if (
+                PrologSubstitution.combineToConsistentVariableRenaming(substitution1, substitution2, result)
+                && PrologSubstitution.combineToConsistentVariableRenaming(substitution2, substitution1, result)
+            ) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    public static PrologSubstitution isNonAbstractRenaming(
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2
+    ) {
+        if (substitution1 != null && substitution2 != null) {
+            final PrologSubstitution result = new PrologSubstitution();
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution1.entrySet()) {
+                if (Terms.isAbstractVariable(entry.getKey()) || !Terms.isNonAbstractVariable(entry.getValue())) {
+                    return null;
+                } else if (substitution2.containsKey(entry.getKey())) {
+                    if (!entry.getValue().equals(substitution2.get(entry.getKey()))) {
+                        return null;
+                    }
+                }
+                result.put(entry.getKey(), entry.getValue());
+            }
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution2.entrySet()) {
+                if (Terms.isAbstractVariable(entry.getKey()) || !Terms.isNonAbstractVariable(entry.getValue())) {
+                    return null;
+                } else if (substitution1.containsKey(entry.getKey())) {
+                    if (!entry.getValue().equals(substitution1.get(entry.getKey()))) {
+                        return null;
+                    }
+                }
+                result.put(entry.getKey(), entry.getValue());
+            }
+            return result;
+        } else {
+            return null;
+        }
+    }
+
     private static PrologSubstitution appendIfConsistentVariableRenaming(
         final PrologSubstitution substitution1,
         final PrologSubstitution substitution2
     ) {
-        final PrologSubstitution res = new PrologSubstitution();
+        final PrologSubstitution result = new PrologSubstitution();
         for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution1.entrySet()) {
             final PrologVariable key = entry.getKey();
             final PrologTerm value = entry.getValue();
@@ -81,9 +129,35 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
                     return null;
                 }
             }
-            res.put(entry.getKey(), entry.getValue());
+            result.put(entry.getKey(), entry.getValue());
         }
-        return res;
+        return result;
+    }
+
+    private static boolean combineToConsistentVariableRenaming(
+        final PrologSubstitution substitution1,
+        final PrologSubstitution substitution2,
+        final PrologSubstitution result
+    ) {
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : substitution1.entrySet()) {
+            final PrologVariable key = entry.getKey();
+            final PrologTerm value = entry.getValue();
+            if (Terms.isAbstractVariable(key) || !Terms.isNonAbstractVariable(value)) {
+                if (Terms.isNonAbstractVariable(key) || !Terms.isAbstractVariable(value)) {
+                    return false;
+                } else if (substitution2.containsKey(key)) {
+                    if (!value.equals(substitution2.get(key))) {
+                        return false;
+                    }
+                }
+            } else if (substitution2.containsKey(key)) {
+                if (!value.equals(substitution2.get(key))) {
+                    return false;
+                }
+            }
+            result.put(entry.getKey(), entry.getValue());
+        }
+        return true;
     }
 
     public PrologSubstitution() {

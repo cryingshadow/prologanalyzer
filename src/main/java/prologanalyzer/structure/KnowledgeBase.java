@@ -8,6 +8,171 @@ import prologparser.*;
 
 public class KnowledgeBase {
 
+    public static boolean matchesKnowledge(
+        final PrologSubstitution matcher,
+        final AbstractState child,
+        final AbstractState parent,
+        final Set<PrologVariable> nonAbstractVariablesInMatcher,
+        final Set<PrologAbstractVariable> abstractVariablesInMatcher
+    ) {
+        outerLoop: for (final TermPair pair : parent.knowledge().nonUnifiable) {
+            final PrologTerm matched1 = matcher.apply(pair.term1());
+            final PrologTerm matched2 = matcher.apply(pair.term2());
+            for (final TermPair nonUnifyingInChild : child.knowledge().nonUnifiable) {
+                if (
+                    (nonUnifyingInChild.term1().equals(matched1) && nonUnifyingInChild.term2().equals(matched2))
+                    || (nonUnifyingInChild.term1().equals(matched2) && nonUnifyingInChild.term2().equals(matched1))
+                ) {
+                    continue outerLoop;
+                }
+            }
+            for (final TermPair nonUnifyingInChild : child.knowledge().nonUnifiable) {
+                if (
+                    KnowledgeBase.isNonAbstractAndUnusedRenaming(
+                        matched1,
+                        matched2,
+                        nonUnifyingInChild,
+                        nonAbstractVariablesInMatcher,
+                        abstractVariablesInMatcher,
+                        matcher
+                    )
+                ) {
+                    continue outerLoop;
+                }
+            }
+            return false;
+        }
+        final Set<PrologVariable> matchedFreeVariables = new LinkedHashSet<PrologVariable>();
+        for (final PrologVariable variable : parent.knowledge().free) {
+            PrologVariable variableToAdd = null;
+            if (matcher.containsKey(variable)) {
+                variableToAdd = (PrologVariable)matcher.get(variable);
+                if (!child.knowledge().isFree(variableToAdd)) {
+                    return false;
+                }
+            } else {
+                if (!child.knowledge().isFree(variable)) {
+                    if (!nonAbstractVariablesInMatcher.contains(variable)) {
+                        final Set<PrologVariable> free = new LinkedHashSet<PrologVariable>(child.knowledge().free);
+                        free.removeAll(nonAbstractVariablesInMatcher);
+                        if (!free.isEmpty()) {
+                            matcher.put(variable, free.iterator().next());
+                            variableToAdd = (PrologVariable)matcher.get(variable);
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    variableToAdd = variable;
+                }
+            }
+            nonAbstractVariablesInMatcher.add(variable);
+            nonAbstractVariablesInMatcher.add(variableToAdd);
+            matchedFreeVariables.add(variableToAdd);
+        }
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
+            if (Terms.isAbstractVariable(entry.getKey())) {
+                for (final PrologVariable variable : Terms.createSetOfAllNonAbstractVariables(entry.getValue())) {
+                    if (matchedFreeVariables.contains(variable)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        for (final PrologAbstractVariable variable : parent.knowledge().ground) {
+            if (matcher.containsKey(variable)) {
+                if (!child.knowledge().isGround(matcher.get(variable))) {
+                    return false;
+                }
+            } else if (!child.knowledge().isGround(variable)) {
+                if (
+                    parent.containsVariableInGoal(variable)
+                    || child.containsVariable(variable)
+                    || abstractVariablesInMatcher.contains(variable)
+                ) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean isNonAbstractAndUnusedRenaming(
+        final PrologSubstitution matcher1,
+        final PrologSubstitution matcher2,
+        final Set<PrologVariable> nonAbstractVariablesInMatcher,
+        final Set<PrologAbstractVariable> abstractVariablesInMatcher,
+        final PrologSubstitution matcher
+    ) {
+        final PrologSubstitution renaming = PrologSubstitution.combineToConsistentVariableRenaming(matcher1, matcher2);
+        final Set<PrologVariable> nextNonAbstractVariablesInMatcher = new LinkedHashSet<PrologVariable>();
+        final Set<PrologAbstractVariable> nextAbstractVariablesInMatcher = new LinkedHashSet<PrologAbstractVariable>();
+        boolean ok = true;
+        if (renaming != null) {
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : renaming.entrySet()) {
+                final PrologVariable key = entry.getKey();
+                final PrologVariable value = (PrologVariable)entry.getValue();
+                if (
+                    nonAbstractVariablesInMatcher.contains(key)
+                    || nonAbstractVariablesInMatcher.contains(value)
+                    || nextNonAbstractVariablesInMatcher.contains(key)
+                    || nextNonAbstractVariablesInMatcher.contains(value)
+                    || abstractVariablesInMatcher.contains(key)
+                    || abstractVariablesInMatcher.contains(value)
+                    || nextAbstractVariablesInMatcher.contains(key)
+                    || nextAbstractVariablesInMatcher.contains(value)
+                ) {
+                    ok = false;
+                    break;
+                } else {
+                    if (Terms.isAbstractVariable(key)) {
+                        nextAbstractVariablesInMatcher.add((PrologAbstractVariable)key);
+                        nextAbstractVariablesInMatcher.add((PrologAbstractVariable)value);
+                    } else {
+                        nextNonAbstractVariablesInMatcher.add(key);
+                        nextNonAbstractVariablesInMatcher.add(value);
+                    }
+                }
+            }
+            if (ok) {
+                for (final Map.Entry<PrologVariable, PrologTerm> entry : renaming.entrySet()) {
+                    matcher.put(entry.getKey(), entry.getValue());
+                }
+                nonAbstractVariablesInMatcher.addAll(nextNonAbstractVariablesInMatcher);
+                abstractVariablesInMatcher.addAll(nextAbstractVariablesInMatcher);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isNonAbstractAndUnusedRenaming(
+        final PrologTerm matched1,
+        final PrologTerm matched2,
+        final TermPair nonUnifyingInChild,
+        final Set<PrologVariable> nonAbstractVariablesInMatcher,
+        final Set<PrologAbstractVariable> abstractVariablesInMatcher,
+        final PrologSubstitution matcher
+    ) {
+        return
+            KnowledgeBase.isNonAbstractAndUnusedRenaming(
+                Terms.calculateMatcherWithAbstractVariables(matched1, nonUnifyingInChild.term1()),
+                Terms.calculateMatcherWithAbstractVariables(matched2, nonUnifyingInChild.term2()),
+                nonAbstractVariablesInMatcher,
+                abstractVariablesInMatcher,
+                matcher
+            )
+            || KnowledgeBase.isNonAbstractAndUnusedRenaming(
+                Terms.calculateMatcherWithAbstractVariables(matched1, nonUnifyingInChild.term1()),
+                Terms.calculateMatcherWithAbstractVariables(matched2, nonUnifyingInChild.term2()),
+                nonAbstractVariablesInMatcher,
+                abstractVariablesInMatcher,
+                matcher
+            );
+    }
+
     private final Set<PrologVariable> free;
 
     private final Set<PrologAbstractVariable> ground;
@@ -111,6 +276,17 @@ public class KnowledgeBase {
         );
     }
 
+    public Set<PrologVariable> getAllVariables() {
+        final Set<PrologVariable> res = new TreeSet<PrologVariable>();
+        res.addAll(this.free);
+        res.addAll(this.ground);
+        for (final TermPair pair : this.nonUnifiable) {
+            res.addAll(Terms.createSetOfAllVariables(pair.term1()));
+            res.addAll(Terms.createSetOfAllVariables(pair.term2()));
+        }
+        return res;
+    }
+
     public boolean isCompatibleWithNonUnification(final PrologSubstitution substitution) {
         final PrologSubstitution restricted = this.restrictToGround(substitution);
         for (final TermPair pair : this.nonUnifiable) {
@@ -130,6 +306,14 @@ public class KnowledgeBase {
         return true;
     }
 
+    public boolean isFree(final PrologVariable variable) {
+        return this.free.contains(variable);
+    }
+
+    public boolean isGround(final PrologTerm term) {
+        return this.ground.containsAll(Terms.createSetOfAllVariables(term)) && !Terms.isCyclic(term);
+    }
+
     public PrologSubstitution restrictToFree(final PrologSubstitution substitution) {
         return substitution.restrict(this.free);
     }
@@ -143,7 +327,8 @@ public class KnowledgeBase {
         final PrologSubstitution mguOnFree = this.restrictToFree(mgu);
         final Set<PrologVariable> newFree = new LinkedHashSet<PrologVariable>(this.free);
         newFree.addAll(Terms.createSetOfAllVariables(clause.head()));
-        final PrologSubstitution mguOnNonFreeNonAbstract = mgu.restrictToNonAbstractVariables().restrictToComplement(newFree);
+        final PrologSubstitution mguOnNonFreeNonAbstract =
+            mgu.restrictToNonAbstractVariables().restrictToComplement(newFree);
         final Set<PrologVariable> substituteVariables =
             mguOnFree
             .values()

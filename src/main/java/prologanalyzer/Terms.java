@@ -13,6 +13,14 @@ public abstract class Terms {
 
     public static final String DEFAULT_NON_ABSTRACT_VARIABLE_NAME = "X";
 
+    public static PrologSubstitution calculateMatcher(final PrologTerm from, final PrologTerm to) {
+        return Terms.calculateMatcher(from, to, false);
+    }
+
+    public static PrologSubstitution calculateMatcherWithAbstractVariables(final PrologTerm from, final PrologTerm to) {
+        return Terms.calculateMatcher(from, to, true);
+    }
+
     public static Set<PrologAbstractVariable> createSetOfAllAbstractVariables(final PrologTerm term) {
         return Terms.createSetOfAllOccurrences(t -> Terms.isAbstractVariable(t), term);
     }
@@ -95,6 +103,13 @@ public abstract class Terms {
 
     public static boolean isCut(final PrologTerm term) {
         return Terms.getArity(term) == 0 && "!".equals(term.name);
+    }
+
+    public static boolean isCyclic(final PrologTerm term) {
+        if (term instanceof PrologCyclicTerm) {
+            return true;
+        }
+        return term.arguments.stream().anyMatch(Terms::isCyclic);
     }
 
     public static boolean isEmptyList(final PrologTerm term) {
@@ -253,6 +268,41 @@ public abstract class Terms {
             return new LabeledCut(scope);
         }
         return term;
+    }
+
+    private static PrologSubstitution calculateMatcher(
+        final PrologTerm from,
+        final PrologTerm to,
+        final boolean keepRangeAbstract
+    ) {
+        final PrologSubstitution matcher = new PrologSubstitution();
+        if (from.equals(to)) {
+            return matcher;
+        } else if ((keepRangeAbstract && Terms.isVariable(from)) || Terms.isNonAbstractVariable(from)) {
+            matcher.put((PrologVariable)from, to);
+            return matcher;
+        } else if (Terms.haveSameFunctionSymbol(from, to)) {
+            for (int i = 0; i < Terms.getArity(from); i++) {
+                final PrologSubstitution argumentMatcher =
+                    Terms.calculateMatcher(from.arguments.get(i), to.arguments.get(i), keepRangeAbstract);
+                if (argumentMatcher == null) {
+                    return null;
+                } else {
+                    for (final Map.Entry<PrologVariable, PrologTerm> entry : argumentMatcher.entrySet()) {
+                        if (matcher.containsKey(entry.getKey())) {
+                            if (!matcher.get(entry.getKey()).equals(entry.getValue())) {
+                                return null;
+                            }
+                        } else {
+                            matcher.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
+            }
+            return matcher;
+        } else {
+            return null;
+        }
     }
 
 }
