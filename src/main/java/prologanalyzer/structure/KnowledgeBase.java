@@ -194,19 +194,24 @@ public class KnowledgeBase {
     }
 
     public KnowledgeBase addFree(final Collection<PrologVariable> variables) {
-        final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(this.free);
+        final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
+        newFree.addAll(this.free);
         newFree.addAll(variables);
         return new KnowledgeBase(this.ground, this.nonUnifiable, newFree);
     }
 
     public KnowledgeBase addGround(final Collection<PrologAbstractVariable> variables) {
-        final Set<PrologAbstractVariable> newGround = new TreeSet<PrologAbstractVariable>(this.ground);
+        final Set<PrologAbstractVariable> newGround =
+            new TreeSet<PrologAbstractVariable>(PrologTermComparator.INSTANCE);
+        newGround.addAll(this.ground);
         newGround.addAll(variables);
         return new KnowledgeBase(newGround, this.nonUnifiable, this.free);
     }
 
     public KnowledgeBase addGround(final PrologAbstractVariable variable) {
-        final Set<PrologAbstractVariable> newGround = new TreeSet<PrologAbstractVariable>(this.ground);
+        final Set<PrologAbstractVariable> newGround =
+            new TreeSet<PrologAbstractVariable>(PrologTermComparator.INSTANCE);
+        newGround.addAll(this.ground);
         newGround.add(variable);
         return new KnowledgeBase(newGround, this.nonUnifiable, this.free);
     }
@@ -313,7 +318,7 @@ public class KnowledgeBase {
     }
 
     public Set<PrologVariable> getAllVariables() {
-        final Set<PrologVariable> res = new TreeSet<PrologVariable>();
+        final Set<PrologVariable> res = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
         res.addAll(this.free);
         res.addAll(this.ground);
         for (final TermPair pair : this.nonUnifiable) {
@@ -359,7 +364,8 @@ public class KnowledgeBase {
     }
 
     public KnowledgeBase removeFree(final Set<PrologVariable> variables) {
-        final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(this.free);
+        final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
+        newFree.addAll(this.free);
         newFree.removeAll(variables);
         return new KnowledgeBase(this.ground, this.nonUnifiable, newFree);
     }
@@ -385,7 +391,8 @@ public class KnowledgeBase {
     }
 
     private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu, final PrologClause clause) {
-        final Set<PrologVariable> result = new TreeSet<PrologVariable>(this.free);
+        final Set<PrologVariable> result = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
+        result.addAll(this.free);
         final PrologSubstitution mguOnFree = this.restrictToFree(mgu);
         final Set<PrologVariable> newFree = new LinkedHashSet<PrologVariable>(this.free);
         newFree.addAll(Terms.createSetOfAllVariables(clause.head()));
@@ -419,7 +426,7 @@ public class KnowledgeBase {
             .ground
             .stream()
             .flatMap(variable -> Terms.createSetOfAllAbstractVariables(substitution.apply(variable)).stream())
-            .collect(Collectors.toCollection(TreeSet::new));
+            .collect(Collectors.toCollection(() -> new TreeSet<PrologAbstractVariable>(PrologTermComparator.INSTANCE)));
     }
 
 }

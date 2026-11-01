@@ -85,6 +85,26 @@ public abstract class Terms {
         return new PrologClause(renaming.apply(clause.head()), clause.body().map(renaming::apply));
     }
 
+    public static Set<String> getAllVariableNames(final PrologProgram program) {
+        final Set<String> result = new LinkedHashSet<String>();
+        for (final PrologClause clause : program.clauses()) {
+            for (final PrologVariable variable : Terms.createSetOfAllVariables(clause.head())) {
+                result.add(variable.name);
+            }
+            if (clause.body().isPresent()) {
+                for (final PrologVariable variable : Terms.createSetOfAllVariables(clause.body().get())) {
+                    result.add(variable.name);
+                }
+            }
+        }
+        for (final PrologTerm directive : program.directives()) {
+            for (final PrologVariable variable : Terms.createSetOfAllVariables(directive)) {
+                result.add(variable.name);
+            }
+        }
+        return result;
+    }
+
     public static int getArity(final PrologTerm term) {
         return term.arguments.size();
     }
