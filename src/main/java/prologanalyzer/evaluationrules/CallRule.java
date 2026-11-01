@@ -9,7 +9,7 @@ import prologparser.*;
 public class CallRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasTerm()) {
             return List.of();
@@ -38,7 +38,9 @@ public class CallRule implements SymbolicEvaluationRule {
         );
         newGoal.add(new ScopeMarker(scope));
         newGoal.addAll(state.goal().stream().skip(1).toList());
-        return List.of(new AbstractState(newGoal, state.knowledge()));
+        return List.of(
+            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+        );
     }
 
     @Override

@@ -7,6 +7,6 @@ import prologanalyzer.structure.*;
 @FunctionalInterface
 public interface SymbolicEvaluationRule {
 
-    List<AbstractState> apply(AbstractState state, GlobalState global);
+    List<SymbolicEvaluationResult> apply(AbstractState state, GlobalState global);
 
 }

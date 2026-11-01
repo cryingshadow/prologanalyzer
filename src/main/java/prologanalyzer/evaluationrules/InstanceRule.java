@@ -262,12 +262,12 @@ public class InstanceRule implements SymbolicEvaluationRule {
     }
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final PrologSubstitution matcher = InstanceRule.calculateInstanceMatcher(state, this.target, this.noGroundLoss);
         if (matcher == null) {
             return List.of();
         }
-        return List.of(this.target);
+        return List.of(new SymbolicEvaluationResult(this.target, matcher));
     }
 
     @Override

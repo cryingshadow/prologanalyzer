@@ -9,7 +9,7 @@ import prologparser.*;
 public class EvalRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
@@ -35,7 +35,7 @@ public class EvalRule implements SymbolicEvaluationRule {
                 global.fridge()
             );
         final Optional<PrologTerm> body = firstGoal.getClause().body();
-        final List<AbstractState> result = new ArrayList<AbstractState>();
+        final List<SymbolicEvaluationResult> result = new ArrayList<SymbolicEvaluationResult>();
         final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
             newGoalEval.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
@@ -52,16 +52,24 @@ public class EvalRule implements SymbolicEvaluationRule {
             );
         }
         newGoalEval.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
-        result.add(new AbstractState(newGoalEval, state.knowledge().apply(mgu, firstGoal.getClause())));
+        result.add(
+            new SymbolicEvaluationResult(
+                new AbstractState(newGoalEval, state.knowledge().apply(mgu, firstGoal.getClause())),
+                mguWithAdditionalRenamings
+            )
+        );
         final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal());
         newGoalBacktrack.remove(0);
         result.add(
-            new AbstractState(
-                newGoalBacktrack,
-                state
-                .knowledge()
-                .addNonUnification(firstConjunct, firstGoal.getClause().head())
-                .addFree(Terms.createSetOfAllNonAbstractVariables(firstGoal.getClause().head()))
+            new SymbolicEvaluationResult(
+                new AbstractState(
+                    newGoalBacktrack,
+                    state
+                    .knowledge()
+                    .addNonUnification(firstConjunct, firstGoal.getClause().head())
+                    .addFree(Terms.createSetOfAllNonAbstractVariables(firstGoal.getClause().head()))
+                ),
+                new PrologSubstitution()
             )
         );
         return result;

@@ -276,6 +276,42 @@ public class KnowledgeBase {
         );
     }
 
+    public KnowledgeBase applyToNonUnification(final PrologSubstitution substitution) {
+        return new KnowledgeBase(
+            this.ground,
+            this
+            .nonUnifiable
+            .stream()
+            .map(pair -> new TermPair(substitution.apply(pair.term1()), substitution.apply(pair.term2())))
+            .collect(Collectors.toSet()),
+            this.free
+        );
+    }
+
+    public Set<PrologVariable> freeVariables(final PrologTerm term) {
+        final Set<PrologVariable> result = Terms.createSetOfAllNonAbstractVariables(term);
+        result.retainAll(this.free);
+        return result;
+    }
+
+    public Set<PrologAbstractVariable> getAllAbstractVariables() {
+        final Set<PrologAbstractVariable> result = new LinkedHashSet<PrologAbstractVariable>(this.ground);
+        for (final TermPair pair : this.nonUnifiable) {
+            result.addAll(Terms.createSetOfAllAbstractVariables(pair.term1()));
+            result.addAll(Terms.createSetOfAllAbstractVariables(pair.term2()));
+        }
+        return result;
+    }
+
+    public Set<PrologVariable> getAllNonAbstractVariables() {
+        final Set<PrologVariable> result = new LinkedHashSet<PrologVariable>(this.free);
+        for (final TermPair pair : this.nonUnifiable) {
+            result.addAll(Terms.createSetOfAllNonAbstractVariables(pair.term1()));
+            result.addAll(Terms.createSetOfAllNonAbstractVariables(pair.term2()));
+        }
+        return result;
+    }
+
     public Set<PrologVariable> getAllVariables() {
         final Set<PrologVariable> res = new TreeSet<PrologVariable>();
         res.addAll(this.free);
@@ -310,8 +346,22 @@ public class KnowledgeBase {
         return this.free.contains(variable);
     }
 
+    public boolean isFree(final Set<PrologVariable> variables) {
+        return this.free.containsAll(variables);
+    }
+
     public boolean isGround(final PrologTerm term) {
         return this.ground.containsAll(Terms.createSetOfAllVariables(term)) && !Terms.isCyclic(term);
+    }
+
+    public boolean isGround(final Set<PrologAbstractVariable> variables) {
+        return this.ground.containsAll(variables);
+    }
+
+    public KnowledgeBase removeFree(final Set<PrologVariable> variables) {
+        final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(this.free);
+        newFree.removeAll(variables);
+        return new KnowledgeBase(this.ground, this.nonUnifiable, newFree);
     }
 
     public PrologSubstitution restrictToFree(final PrologSubstitution substitution) {
@@ -320,6 +370,18 @@ public class KnowledgeBase {
 
     public PrologSubstitution restrictToGround(final PrologSubstitution substitution) {
         return substitution.restrict(this.ground);
+    }
+
+    public Set<PrologVariable> restrictToNonFree(final Set<PrologVariable> variables) {
+        final Set<PrologVariable> result = new LinkedHashSet<PrologVariable>(variables);
+        result.removeAll(this.free);
+        return result;
+    }
+
+    public Set<PrologAbstractVariable> restrictToNonGround(final Set<PrologAbstractVariable> variables) {
+        final Set<PrologAbstractVariable> result = new LinkedHashSet<PrologAbstractVariable>(variables);
+        result.removeAll(this.ground);
+        return result;
     }
 
     private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu, final PrologClause clause) {

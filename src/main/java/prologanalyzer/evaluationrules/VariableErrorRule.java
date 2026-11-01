@@ -9,7 +9,7 @@ import prologparser.*;
 public class VariableErrorRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasTerm()) {
             return List.of();
@@ -22,7 +22,9 @@ public class VariableErrorRule implements SymbolicEvaluationRule {
         ) {
             return List.of();
         }
-        return List.of(new AbstractState(List.of(), state.knowledge()));
+        return List.of(
+            new SymbolicEvaluationResult(new AbstractState(List.of(), state.knowledge()), new PrologSubstitution())
+        );
     }
 
     @Override

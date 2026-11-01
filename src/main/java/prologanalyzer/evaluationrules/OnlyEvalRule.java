@@ -9,7 +9,7 @@ import prologparser.*;
 public class OnlyEvalRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
@@ -51,7 +51,12 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
             );
         }
         newGoal.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
-        return List.of(new AbstractState(newGoal, state.knowledge().apply(mgu, firstGoal.getClause())));
+        return List.of(
+            new SymbolicEvaluationResult(
+                new AbstractState(newGoal, state.knowledge().apply(mgu, firstGoal.getClause())),
+                mguWithAdditionalRenamings
+            )
+        );
     }
 
     @Override

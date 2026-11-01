@@ -7,14 +7,16 @@ import prologanalyzer.structure.*;
 public class FailureRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.isScopeMarker()) {
             return List.of();
         }
         final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
         newGoal.remove(0);
-        return List.of(new AbstractState(newGoal, state.knowledge()));
+        return List.of(
+            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+        );
     }
 
     @Override

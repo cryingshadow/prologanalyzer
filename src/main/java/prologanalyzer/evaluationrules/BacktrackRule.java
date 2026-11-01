@@ -9,7 +9,7 @@ import prologparser.*;
 public class BacktrackRule implements SymbolicEvaluationRule {
 
     @Override
-    public List<AbstractState> apply(final AbstractState state, final GlobalState global) {
+    public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
@@ -22,7 +22,9 @@ public class BacktrackRule implements SymbolicEvaluationRule {
         if (optionalMGU.isPresent() && state.knowledge().isCompatibleWithNonUnification(optionalMGU.get())) {
             return List.of();
         }
-        return List.of(new AbstractState(newGoal, state.knowledge()));
+        return List.of(
+            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+        );
     }
 
     @Override
