@@ -6,6 +6,10 @@ import prologanalyzer.structure.*;
 
 public class FailureRule implements SymbolicEvaluationRule {
 
+    public static final FailureRule INSTANCE = new FailureRule();
+
+    private FailureRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

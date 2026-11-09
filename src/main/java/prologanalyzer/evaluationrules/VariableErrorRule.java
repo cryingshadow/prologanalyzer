@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class VariableErrorRule implements SymbolicEvaluationRule {
 
+    public static final VariableErrorRule INSTANCE = new VariableErrorRule();
+
+    private VariableErrorRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class BacktrackRule implements SymbolicEvaluationRule {
 
+    public static final BacktrackRule INSTANCE = new BacktrackRule();
+
+    private BacktrackRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

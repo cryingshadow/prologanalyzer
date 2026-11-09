@@ -39,4 +39,8 @@ public record AbstractState(List<GoalElement> goal, KnowledgeBase knowledge) {
         return false;
     }
 
+    public boolean isEmpty() {
+        return this.goal().isEmpty();
+    }
+
 }

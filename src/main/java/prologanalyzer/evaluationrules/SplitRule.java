@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class SplitRule implements SymbolicEvaluationRule {
 
+    public static final SplitRule INSTANCE = new SplitRule();
+
+    private SplitRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         if (state.goal().size() != 1 || !state.goal().getFirst().hasTerm() || state.goal().getFirst().hasClause()) {

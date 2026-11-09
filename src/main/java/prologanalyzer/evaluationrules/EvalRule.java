@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class EvalRule implements SymbolicEvaluationRule {
 
+    public static final EvalRule INSTANCE = new EvalRule();
+
+    private EvalRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

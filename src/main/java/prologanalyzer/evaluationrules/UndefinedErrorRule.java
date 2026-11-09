@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class UndefinedErrorRule implements SymbolicEvaluationRule {
 
+    public static final UndefinedErrorRule INSTANCE = new UndefinedErrorRule();
+
+    private UndefinedErrorRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

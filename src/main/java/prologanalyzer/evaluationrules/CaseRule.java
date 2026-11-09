@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class CaseRule implements SymbolicEvaluationRule {
 
+    public static final CaseRule INSTANCE = new CaseRule();
+
+    private CaseRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();

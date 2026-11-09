@@ -8,6 +8,10 @@ import prologparser.*;
 
 public class CutRule implements SymbolicEvaluationRule {
 
+    public static final CutRule INSTANCE = new CutRule();
+
+    private CutRule() {}
+
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final GoalElement firstGoal = state.goal().getFirst();
