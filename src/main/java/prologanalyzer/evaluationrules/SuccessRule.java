@@ -24,6 +24,11 @@ public class SuccessRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightgreen";
+    }
+
+    @Override
     public String toString() {
         return "SUCCESS";
     }

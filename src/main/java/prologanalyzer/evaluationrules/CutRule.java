@@ -46,6 +46,11 @@ public class CutRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightgreen";
+    }
+
+    @Override
     public String toString() {
         return "CUT";
     }

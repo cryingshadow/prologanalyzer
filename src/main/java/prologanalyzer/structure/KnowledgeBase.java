@@ -390,6 +390,20 @@ public class KnowledgeBase {
         return result;
     }
 
+    @Override
+    public String toString() {
+        return String.format(
+            "({%s}, {%s}, {%s})",
+            this.ground.stream().map(PrologAbstractVariable::toString).collect(Collectors.joining(", ")),
+            this.free.stream().map(PrologVariable::toString).collect(Collectors.joining(", ")),
+            this
+            .nonUnifiable
+            .stream()
+            .map(pair -> String.format("%s !~ %s", pair.term1(), pair.term2()))
+            .collect(Collectors.joining(", "))
+        );
+    }
+
     private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu, final PrologClause clause) {
         final Set<PrologVariable> result = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
         result.addAll(this.free);

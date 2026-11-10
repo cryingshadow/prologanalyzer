@@ -5,6 +5,11 @@ import prologparser.*;
 public record LabeledTermGoalElement(PrologTerm term, PrologClause clause, int scope) implements GoalElement {
 
     @Override
+    public String toString() {
+        return String.format("(term: %s, clause: %s, scope: %d)", this.term(), this.clause(), this.scope());
+    }
+
+    @Override
     public PrologClause getClause() {
         return this.clause();
     }

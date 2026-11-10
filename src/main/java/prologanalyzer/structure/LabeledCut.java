@@ -13,4 +13,9 @@ public class LabeledCut extends PrologTerm {
         this.scope = scope;
     }
 
+    @Override
+    public String toString() {
+        return "!_" + this.scope;
+    }
+
 }

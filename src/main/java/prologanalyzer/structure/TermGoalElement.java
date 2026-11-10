@@ -5,6 +5,11 @@ import prologparser.*;
 public record TermGoalElement(PrologTerm term) implements GoalElement {
 
     @Override
+    public String toString() {
+        return this.term() == null ? "empty" : this.term.toString();
+    }
+
+    @Override
     public boolean hasClause() {
         return false;
     }

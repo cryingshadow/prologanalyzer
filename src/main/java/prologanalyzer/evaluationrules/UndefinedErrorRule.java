@@ -31,6 +31,11 @@ public class UndefinedErrorRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightgreen";
+    }
+
+    @Override
     public String toString() {
         return "UNDEFINED_ERROR";
     }

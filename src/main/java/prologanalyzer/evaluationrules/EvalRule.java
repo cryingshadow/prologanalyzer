@@ -42,7 +42,9 @@ public class EvalRule implements SymbolicEvaluationRule {
         final List<SymbolicEvaluationResult> result = new ArrayList<SymbolicEvaluationResult>();
         final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
         if (body.isEmpty()) {
-            newGoalEval.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
+            if (tailOfConjunction != null) {
+                newGoalEval.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
+            }
         } else {
             newGoalEval.add(
                 new TermGoalElement(
@@ -77,6 +79,11 @@ public class EvalRule implements SymbolicEvaluationRule {
             )
         );
         return result;
+    }
+
+    @Override
+    public String getDOTColor() {
+        return "lightblue";
     }
 
     @Override

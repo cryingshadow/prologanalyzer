@@ -48,6 +48,11 @@ public class CallRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightcyan";
+    }
+
+    @Override
     public String toString() {
         return "CALL";
     }

@@ -13,14 +13,13 @@ public class Main {
     public static final Gson GSON = new Gson();
 
     public static void main(final String[] args) throws IOException {
-        try (final JsonWriter writer = Main.GSON.newJsonWriter(new FileWriter(args[1]))) {
-            Main.GSON.toJson(
-                new TerminationStrategy()
-                .evaluate(new PrologParser(new FileReader(args[0])).parse())
-                .toJSON(null, null),
-                JSONGraph.class,
-                writer
-            );
+        final EvaluationResult result =
+            new TerminationStrategy(7, 0).evaluate(new PrologParser(new FileReader(args[0])).parse());
+//        try (final JsonWriter writer = Main.GSON.newJsonWriter(new FileWriter(args[1]))) {
+//            Main.GSON.toJson(result.graph().toJSON(null, null), JSONGraph.class, writer);
+//        }
+        if (args.length > 2) {
+            DOTWriter.writeDOTFile(result.graph(), result.rootId(), true, new File(args[2]));
         }
     }
 

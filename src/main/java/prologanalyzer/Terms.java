@@ -183,12 +183,23 @@ public abstract class Terms {
         }
     }
 
+    public static boolean isLabeledCut(final PrologTerm term) {
+        return term instanceof LabeledCut;
+    }
+
     public static boolean isNonAbstractVariable(final PrologTerm term) {
         return Terms.isVariable(term) && !Terms.isAbstractVariable(term);
     }
 
     public static boolean isVariable(final PrologTerm term) {
         return term instanceof PrologVariable;
+    }
+
+    public static int maxNesting(final PrologTerm term) {
+        if (term.arguments.isEmpty()) {
+            return 0;
+        }
+        return term.arguments.stream().mapToInt(Terms::maxNesting).max().orElse(0) + 1;
     }
 
     public static boolean occurs(final String functionSymbol, final int arity, final PrologTerm inTerm) {

@@ -32,6 +32,11 @@ public class VariableErrorRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightgreen";
+    }
+
+    @Override
     public String toString() {
         return "VARIABLE_ERROR";
     }

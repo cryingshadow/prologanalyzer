@@ -77,6 +77,11 @@ public class SplitRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "violet";
+    }
+
+    @Override
     public String toString() {
         return "SPLIT";
     }

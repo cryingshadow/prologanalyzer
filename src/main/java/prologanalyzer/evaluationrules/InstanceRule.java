@@ -271,6 +271,11 @@ public class InstanceRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightgrey";
+    }
+
+    @Override
     public String toString() {
         return "INSTANCE";
     }

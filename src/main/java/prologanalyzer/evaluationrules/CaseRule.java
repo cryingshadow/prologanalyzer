@@ -39,6 +39,11 @@ public class CaseRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightcyan";
+    }
+
+    @Override
     public String toString() {
         return "CASE";
     }

@@ -1,6 +1,7 @@
 package prologanalyzer.structure;
 
 import java.util.*;
+import java.util.stream.*;
 
 public class AdjacencySets<V, E> extends LinkedHashMap<Vertex<V>, Set<Edge<E, V>>> {
 
@@ -74,6 +75,20 @@ public class AdjacencySets<V, E> extends LinkedHashMap<Vertex<V>, Set<Edge<E, V>
             }
         }
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+            "[%s]",
+            this.entrySet().stream().map(entry ->
+                String.format(
+                    "%s -> [%s]",
+                    entry.getKey(),
+                    entry.getValue().stream().map(Edge::toString).collect(Collectors.joining(",\n    "))
+                )
+            ).collect(Collectors.joining(",\n"))
+        );
     }
 
 }

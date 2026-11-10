@@ -1,6 +1,7 @@
 package prologanalyzer.structure;
 
 import java.util.*;
+import java.util.stream.*;
 
 import prologanalyzer.*;
 import prologparser.*;
@@ -182,8 +183,14 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
     }
 
     public PrologTerm apply(final PrologTerm term) {
+        if (term == null) {
+            return null;
+        }
         if (this.containsKey(term)) {
             return this.get(term);
+        }
+        if (Terms.isLabeledCut(term)) {
+            return term;
         }
         final List<PrologTerm> newArguments = new ArrayList<PrologTerm>();
         for (final PrologTerm argument : term.arguments) {
@@ -308,19 +315,14 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
 
     @Override
     public String toString() {
-        final StringBuilder res = new StringBuilder();
-        boolean first = true;
-        for (final Map.Entry<PrologVariable, PrologTerm> entry : this.entrySet()) {
-            if (first) {
-                first = false;
-            } else {
-                res.append(",\n");
-            }
-            res.append(entry.getKey());
-            res.append(" -> ");
-            res.append(entry.getValue());
-        }
-        return res.toString();
+        return String.format(
+            "[%s]",
+            this
+            .entrySet()
+            .stream()
+            .map(entry -> String.format("%s/%s", entry.getKey(), entry.getValue()))
+            .collect(Collectors.joining(",\n"))
+        );
     }
 
 }

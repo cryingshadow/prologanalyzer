@@ -5,6 +5,11 @@ import prologparser.*;
 public record ScopeMarker(int scope) implements GoalElement {
 
     @Override
+    public String toString() {
+        return "?_" + this.scope();
+    }
+
+    @Override
     public PrologClause getClause() {
         return null;
     }

@@ -40,7 +40,7 @@ public class ParallelRule implements SymbolicEvaluationRule {
             lastGoals
             .stream()
             .skip(1)
-            .limit(lastGoals.size() - 2)
+            .limit(Math.max(0, lastGoals.size() - 2))
             .anyMatch(element -> element.isScopeMarker() && activeCuts.contains(element.getScope()))
         ) {
             return List.of();
@@ -49,6 +49,11 @@ public class ParallelRule implements SymbolicEvaluationRule {
             new SymbolicEvaluationResult(new AbstractState(firstGoals, state.knowledge()), new PrologSubstitution()),
             new SymbolicEvaluationResult(new AbstractState(lastGoals, state.knowledge()), new PrologSubstitution())
         );
+    }
+
+    @Override
+    public String getDOTColor() {
+        return "violet";
     }
 
     @Override

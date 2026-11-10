@@ -1,6 +1,7 @@
 package prologanalyzer.structure;
 
 import java.util.*;
+import java.util.stream.*;
 
 import prologanalyzer.*;
 import prologparser.*;
@@ -41,6 +42,19 @@ public record AbstractState(List<GoalElement> goal, KnowledgeBase knowledge) {
 
     public boolean isEmpty() {
         return this.goal().isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+            "%s; %s",
+            this
+            .goal()
+            .stream()
+            .map(GoalElement::toString)
+            .collect(Collectors.joining(" | ")),
+            this.knowledge().toString()
+        );
     }
 
 }

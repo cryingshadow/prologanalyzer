@@ -64,6 +64,11 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String getDOTColor() {
+        return "lightblue";
+    }
+
+    @Override
     public String toString() {
         return "ONLY_EVAL";
     }

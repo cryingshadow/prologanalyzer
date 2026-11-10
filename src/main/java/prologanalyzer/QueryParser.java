@@ -54,8 +54,7 @@ public abstract class QueryParser {
             List.of(
                 new TermGoalElement(
                     Terms.transformWithScope(new PrologTerm(query.substring(0, indexOpen), arguments), scope)
-                ),
-                new ScopeMarker(scope)
+                )
             ),
             knowledge
         );
