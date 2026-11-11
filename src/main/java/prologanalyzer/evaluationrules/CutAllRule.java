@@ -14,6 +14,9 @@ public class CutAllRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
+        if (state.goal().isEmpty()) {
+            return List.of();
+        }
         final GoalElement firstGoal = state.goal().getFirst();
         if (!firstGoal.hasTerm()) {
             return List.of();

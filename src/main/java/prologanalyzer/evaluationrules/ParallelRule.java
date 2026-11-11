@@ -35,6 +35,9 @@ public class ParallelRule implements SymbolicEvaluationRule {
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
         final List<GoalElement> firstGoals = state.goal().stream().limit(this.splitIndex).toList();
         final List<GoalElement> lastGoals = state.goal().stream().skip(this.splitIndex).toList();
+        if (firstGoals.isEmpty() || lastGoals.isEmpty()) {
+            return List.of();
+        }
         final Set<Integer> activeCuts = ParallelRule.computeActiveCuts(firstGoals);
         if (
             lastGoals
