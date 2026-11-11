@@ -293,6 +293,17 @@ public class KnowledgeBase {
         );
     }
 
+    @Override
+    public boolean equals(final Object o) {
+        if (o instanceof final KnowledgeBase other) {
+            return
+                this.ground.equals(other.ground)
+                && this.nonUnifiable.equals(other.nonUnifiable)
+                && this.free.equals(other.free);
+        }
+        return false;
+    }
+
     public Set<PrologVariable> freeVariables(final PrologTerm term) {
         final Set<PrologVariable> result = Terms.createSetOfAllNonAbstractVariables(term);
         result.retainAll(this.free);
@@ -326,6 +337,11 @@ public class KnowledgeBase {
             res.addAll(Terms.createSetOfAllVariables(pair.term2()));
         }
         return res;
+    }
+
+    @Override
+    public int hashCode() {
+        return 2 * this.ground.hashCode() + 3 * this.nonUnifiable.hashCode() + 5 * this.free.hashCode();
     }
 
     public boolean isCompatibleWithNonUnification(final PrologSubstitution substitution) {

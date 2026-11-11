@@ -189,7 +189,7 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
         if (this.containsKey(term)) {
             return this.get(term);
         }
-        if (Terms.isLabeledCut(term)) {
+        if (term.arguments.isEmpty()) {
             return term;
         }
         final List<PrologTerm> newArguments = new ArrayList<PrologTerm>();
