@@ -162,17 +162,20 @@ public class Graph<V, E> {
         this.startVertices.add(vertex);
     }
 
-    public JSONGraph<V, E> toJSON(final V vertexNullLabel, final E edgeNullLabel) {
-        final Map<BigInteger, V> nodes = new TreeMap<BigInteger, V>();
-        final Set<JSONEdge<E>> edges = new TreeSet<JSONEdge<E>>();
+    public <X,Y> JSONGraph<X, Y> toJSON(
+        final Function<Optional<V>, X> vertexToJSON,
+        final Function<Optional<E>, Y> edgeToJSON
+    ) {
+        final Map<BigInteger, X> nodes = new TreeMap<BigInteger, X>();
+        final Set<JSONEdge<Y>> edges = new TreeSet<JSONEdge<Y>>();
         for (final Entry<Vertex<V>, Set<Edge<E, V>>> entry : this.adjacencySets.entrySet()) {
             final BigInteger from = entry.getKey().id();
-            nodes.put(from, entry.getKey().label().orElse(vertexNullLabel));
+            nodes.put(from, vertexToJSON.apply(entry.getKey().label()));
             for (final Edge<E, V> edge : entry.getValue()) {
-                edges.add(new JSONEdge<E>(from, edge.label().orElse(edgeNullLabel), edge.to().id()));
+                edges.add(new JSONEdge<Y>(from, edgeToJSON.apply(edge.label()), edge.to().id()));
             }
         }
-        return new JSONGraph<V, E>(nodes, edges);
+        return new JSONGraph<X, Y>(nodes, edges);
     }
 
     @Override

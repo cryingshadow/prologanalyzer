@@ -8,9 +8,15 @@ import prologparser.*;
 
 public class OnlyEvalRule implements SymbolicEvaluationRule {
 
-    public static final OnlyEvalRule INSTANCE = new OnlyEvalRule();
+    public static final OnlyEvalRule NON_TERMINATION_ONLY_EVAL = new OnlyEvalRule(false);
 
-    private OnlyEvalRule() {}
+    public static final OnlyEvalRule TERMINATION_ONLY_EVAL = new OnlyEvalRule(true);
+
+    private final boolean termination;
+
+    private OnlyEvalRule(final boolean termination) {
+        this.termination = termination;
+    }
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
@@ -34,13 +40,15 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
         }
         final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
-            state.knowledge().addRenamings(
-                mgu,
-                firstConjunct,
-                tailOfConjunction,
-                firstGoal.getClause(),
-                global.fridge()
-            );
+            this.termination ?
+                state.knowledge().addRenamings(
+                    mgu,
+                    firstConjunct,
+                    tailOfConjunction,
+                    firstGoal.getClause(),
+                    global.fridge()
+                ) :
+                    mgu;
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<GoalElement> newGoal = new ArrayList<GoalElement>();
         if (body.isEmpty()) {

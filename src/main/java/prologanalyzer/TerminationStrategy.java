@@ -17,7 +17,7 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
             UndefinedErrorRule.INSTANCE,
             VariableErrorRule.INSTANCE,
             BacktrackRule.INSTANCE,
-            OnlyEvalRule.INSTANCE
+            OnlyEvalRule.TERMINATION_ONLY_EVAL
         );
 
     private static Optional<SymbolicEvaluationExpansion> applySimpleRules(
@@ -121,9 +121,9 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
             );
             return;
         }
-        List<SymbolicEvaluationResult> expansion = EvalRule.INSTANCE.apply(currentState, global);
+        List<SymbolicEvaluationResult> expansion = EvalRule.TERMINATION_EVAL.apply(currentState, global);
         if (!expansion.isEmpty()) {
-            this.evaluate(currentVertex, expansion, EvalRule.INSTANCE, graph, global);
+            this.evaluate(currentVertex, expansion, EvalRule.TERMINATION_EVAL, graph, global);
             return;
         }
         if (
