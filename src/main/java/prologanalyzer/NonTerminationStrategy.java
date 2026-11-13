@@ -36,6 +36,21 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
         return Optional.empty();
     }
 
+    private static boolean isDroppable(final AbstractState currentState) {
+        return
+            currentState.goal().size() > 1
+            && currentState.goal().getFirst().hasTerm()
+            && !currentState.goal().getFirst().hasClause();
+    }
+
+    private static boolean isFocussable(final AbstractState state) {
+        return
+            state.goal().size() == 1
+            && state.goal().getFirst().hasTerm()
+            && !state.goal().getFirst().hasClause()
+            && Terms.isConjunction(state.goal().getFirst().getTerm());
+    }
+
     private static boolean isSingleConjunct(final AbstractState state) {
         return
             state.goal().size() == 1
@@ -44,24 +59,16 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
             && !Terms.isConjunction(state.goal().getFirst().getTerm());
     }
 
-    private static boolean isSplittable(final AbstractState state) {
-        return
-            state.goal().size() == 1
-            && state.goal().getFirst().hasTerm()
-            && !state.goal().getFirst().hasClause()
-            && Terms.isConjunction(state.goal().getFirst().getTerm());
-    }
-
-    private final int maxNestingForGeneralization;
+    private boolean done;
 
     private final long start;
 
     private final long timeout;
 
-    public NonTerminationStrategy(final int maxNestingForGeneralization, final long timeout) {
-        this.maxNestingForGeneralization = maxNestingForGeneralization;
+    public NonTerminationStrategy(final long timeout) {
         this.timeout = timeout;
         this.start = System.currentTimeMillis();
+        this.done = false;
     }
 
     @Override
@@ -100,6 +107,9 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
         final GlobalState global
     ) {
+        if (this.done) {
+            return;
+        }
         final AbstractState currentState = currentVertex.label().get();
         if (currentState.isEmpty()) {
             return;
@@ -144,55 +154,64 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
                 }
                 final AbstractState otherState = vertex.label().get();
                 if (NonTerminationStrategy.isSingleConjunct(otherState)) {
-                    final InstanceRule rule = new InstanceRule(otherState, true);
-                    expansion = rule.apply(currentState, global);
+                    final InstanceRule rule = new InstanceRule(currentState, false);
+                    expansion = rule.apply(otherState, global);
                     if (!expansion.isEmpty()) {
                         graph.addEdge(
                             currentVertex,
                             Optional.of(new SymbolicEvaluationEdgeLabel(rule, expansion.getFirst().substitution())),
                             vertex
                         );
+                        this.done = true;
                         return;
                     }
                 }
             }
+        }
+        if (NonTerminationStrategy.isDroppable(currentState)) {
+            final PrologTerm firstConjunct = Terms.getFirstConjunct(currentState.goal().getFirst().getTerm());
             for (final Vertex<AbstractState> vertex : graph.getVertices()) {
                 if (vertex == currentVertex) {
                     continue;
                 }
                 final AbstractState otherState = vertex.label().get();
-                if (NonTerminationStrategy.isSingleConjunct(otherState)) {
-                    final InstanceRule rule = new InstanceRule(otherState, false);
-                    expansion = rule.apply(currentState, global);
-                    if (!expansion.isEmpty()) {
-                        graph.addEdge(
-                            currentVertex,
-                            Optional.of(new SymbolicEvaluationEdgeLabel(rule, expansion.getFirst().substitution())),
-                            vertex
-                        );
-                        return;
-                    }
+                if (otherState.goal().isEmpty()) {
+                    continue;
                 }
-            }
-        }
-        if (this.nestingIsTooHigh(currentState)) {
-            this.generalize(currentVertex, currentState, graph, global);
-            return;
-        }
-        if (currentState.goal().size() > 1) {
-            for (int i = 1; i < currentState.goal().size() - 1; i++) {
-                final ParallelRule rule = new ParallelRule(i);
+                final GoalElement firstGoal = otherState.goal().getFirst();
+                if (
+                    firstGoal.hasClause()
+                    || firstGoal.isScopeMarker()
+                    || !Terms.haveSameFunctionSymbol(Terms.getFirstConjunct(firstGoal.getTerm()), firstConjunct)
+                ) {
+                    continue;
+                }
+                final DropRule rule = new DropRule(1);
                 expansion = rule.apply(currentState, global);
-                if (!expansion.isEmpty()) {
-                    this.evaluate(currentVertex, expansion, rule, graph, global);
-                    return;
-                }
+                this.evaluate(currentVertex, expansion, rule, graph, global);
+                return;
             }
         }
-        if (NonTerminationStrategy.isSplittable(currentState)) {
-            expansion = SplitRule.INSTANCE.apply(currentState, global);
-            if (!expansion.isEmpty()) {
-                this.evaluate(currentVertex, expansion, SplitRule.INSTANCE, graph, global);
+        if (NonTerminationStrategy.isFocussable(currentState)) {
+            final PrologTerm firstConjunct = Terms.getFirstConjunct(currentState.goal().getFirst().getTerm());
+            for (final Vertex<AbstractState> vertex : graph.getVertices()) {
+                if (vertex == currentVertex) {
+                    continue;
+                }
+                final AbstractState otherState = vertex.label().get();
+                if (otherState.goal().isEmpty()) {
+                    continue;
+                }
+                final GoalElement firstGoal = otherState.goal().getFirst();
+                if (
+                    firstGoal.hasClause()
+                    || firstGoal.isScopeMarker()
+                    || !Terms.haveSameFunctionSymbol(Terms.getFirstConjunct(firstGoal.getTerm()), firstConjunct)
+                ) {
+                    continue;
+                }
+                expansion = FocusRule.INSTANCE.apply(currentState, global);
+                this.evaluate(currentVertex, expansion, FocusRule.INSTANCE, graph, global);
                 return;
             }
         }
@@ -226,54 +245,6 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
                 global
             );
         }
-    }
-
-    private void generalize(
-        final Vertex<AbstractState> currentVertex,
-        final AbstractState currentState,
-        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
-        final GlobalState global
-    ) {
-        final PrologTerm term = currentState.goal().getFirst().getTerm();
-        final List<PrologTerm> generalizedArguments = new ArrayList<PrologTerm>();
-        KnowledgeBase generalizedKnowledge = currentState.knowledge();
-        for (final PrologTerm argument : term.arguments) {
-            if (Terms.maxNesting(argument) > 0) {
-                final PrologAbstractVariable variable =
-                    new PrologAbstractVariable(global.fridge().getFreshName(Terms.DEFAULT_ABSTRACT_VARIABLE_NAME));
-                generalizedArguments.add(variable);
-                if (currentState.knowledge().isGround(argument)) {
-                    generalizedKnowledge = generalizedKnowledge.addGround(variable);
-                }
-            } else {
-                generalizedArguments.add(argument);
-            }
-        }
-        final AbstractState generalizedState =
-            new AbstractState(
-                List.of(new TermGoalElement(new PrologTerm(term.name, generalizedArguments))),
-                generalizedKnowledge
-            );
-        final InstanceRule rule = new InstanceRule(generalizedState, false);
-        final Vertex<AbstractState> newVertex = new Vertex<AbstractState>(generalizedState);
-        graph.addVertex(newVertex);
-        graph.addEdge(
-            currentVertex,
-            Optional.of(
-                new SymbolicEvaluationEdgeLabel(
-                    rule,
-                    rule.apply(currentState, global).getFirst().substitution()
-                )
-            ),
-            newVertex
-        );
-        this.evaluate(newVertex, graph, global);
-    }
-
-    private boolean nestingIsTooHigh(final AbstractState state) {
-        return
-            NonTerminationStrategy.isSingleConjunct(state)
-            && Terms.maxNesting(state.goal().getFirst().getTerm()) > this.maxNestingForGeneralization;
     }
 
 }
