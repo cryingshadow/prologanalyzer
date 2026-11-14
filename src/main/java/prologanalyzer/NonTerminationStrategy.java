@@ -85,7 +85,7 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
         } catch (final IllegalStateException e) {
             e.printStackTrace();
         }
-        return new EvaluationResult(graph, root.id());
+        return new EvaluationResult(graph, root.id(), this.hasCycle(graph));
     }
 
     private void evaluate(
@@ -186,6 +186,7 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
                 ) {
                     continue;
                 }
+
                 final DropRule rule = new DropRule(1);
                 expansion = rule.apply(currentState, global);
                 this.evaluate(currentVertex, expansion, rule, graph, global);
@@ -245,6 +246,17 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
                 global
             );
         }
+    }
+
+    private String hasCycle(final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph) {
+        return
+            graph
+            .getEdges()
+            .values()
+            .stream()
+            .anyMatch(set ->
+                set.stream().anyMatch(label -> "INSTANCE".equals(label.label().get().rule().toString()))
+            ) ? "NO" : "MAYBE";
     }
 
 }

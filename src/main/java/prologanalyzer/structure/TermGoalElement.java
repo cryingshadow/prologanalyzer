@@ -44,4 +44,9 @@ public record TermGoalElement(PrologTerm term) implements GoalElement {
         return new TermGoalElement(substitution.apply(this.term()));
     }
 
+    @Override
+    public JSONGoalElement toJSON() {
+        return new JSONGoalElement(this.term(), null, null);
+    }
+
 }

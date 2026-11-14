@@ -22,6 +22,9 @@ public abstract class Terms {
     }
 
     public static Set<Integer> computeActiveCuts(final PrologTerm term) {
+        if (term == null) {
+            return Set.of();
+        }
         if (term instanceof final LabeledCut cut) {
             return Set.of(cut.scope);
         }
@@ -59,6 +62,9 @@ public abstract class Terms {
 
     @SuppressWarnings("unchecked")
     public static <T> Set<T> createSetOfAllOccurrences(final Predicate<PrologTerm> identifier, final PrologTerm term) {
+        if (term == null) {
+            return Set.of();
+        }
         if (identifier.test(term)) {
             return Set.of((T)term);
         }
@@ -106,10 +112,13 @@ public abstract class Terms {
     }
 
     public static int getArity(final PrologTerm term) {
-        return term.arguments.size();
+        return term == null ? -1 : term.arguments.size();
     }
 
     public static List<PrologTerm> getConjuncts(final PrologTerm term) {
+        if (term == null) {
+            return List.of();
+        }
         if (Terms.isConjunction(term)) {
             return term.arguments.stream().flatMap(a -> Terms.getConjuncts(a).stream()).toList();
         }
@@ -124,6 +133,9 @@ public abstract class Terms {
     }
 
     public static FunctionSymbol getFunctionSymbol(final PrologTerm term) {
+        if (term == null) {
+            return null;
+        }
         return new FunctionSymbol(term.name, Terms.getArity(term));
     }
 
@@ -138,10 +150,16 @@ public abstract class Terms {
     }
 
     public static boolean haveSameFunctionSymbol(final FunctionSymbol symbol, final PrologTerm term) {
+        if (term == null) {
+            return false;
+        }
         return symbol.name().equals(term.name) && symbol.arity() == Terms.getArity(term);
     }
 
     public static boolean haveSameFunctionSymbol(final PrologTerm term1, final PrologTerm term2) {
+        if (term1 == null || term2 == null) {
+            return false;
+        }
         return Terms.haveSameFunctionSymbol(Terms.getFunctionSymbol(term1), term2);
     }
 
@@ -150,18 +168,21 @@ public abstract class Terms {
     }
 
     public static boolean isConjunction(final PrologTerm term) {
-        return ",".equals(term.name) && Terms.getArity(term) == 2;
+        return term != null && ",".equals(term.name) && Terms.getArity(term) == 2;
     }
 
     public static boolean isConstant(final PrologTerm term) {
-        return Terms.getArity(term) == 0 && !Terms.isVariable(term);
+        return term != null && Terms.getArity(term) == 0 && !Terms.isVariable(term);
     }
 
     public static boolean isCut(final PrologTerm term) {
-        return Terms.getArity(term) == 0 && "!".equals(term.name);
+        return term != null && Terms.getArity(term) == 0 && "!".equals(term.name);
     }
 
     public static boolean isCyclic(final PrologTerm term) {
+        if (term == null) {
+            return false;
+        }
         if (term instanceof PrologCyclicTerm) {
             return true;
         }
@@ -169,10 +190,13 @@ public abstract class Terms {
     }
 
     public static boolean isEmptyList(final PrologTerm term) {
-        return Terms.getArity(term) == 0 && "[]".equals(term.name);
+        return term != null && Terms.getArity(term) == 0 && "[]".equals(term.name);
     }
 
     public static boolean isGoalJunctor(final PrologTerm term) {
+        if (term == null) {
+            return false;
+        }
         switch (term.name) {
         case ",":
         case ";":
@@ -196,13 +220,16 @@ public abstract class Terms {
     }
 
     public static int maxNesting(final PrologTerm term) {
-        if (term.arguments.isEmpty()) {
+        if (term == null || term.arguments.isEmpty()) {
             return 0;
         }
         return term.arguments.stream().mapToInt(Terms::maxNesting).max().orElse(0) + 1;
     }
 
     public static boolean occurs(final String functionSymbol, final int arity, final PrologTerm inTerm) {
+        if (inTerm == null) {
+            return false;
+        }
         if (inTerm.name.equals(functionSymbol) && inTerm.arguments.size() == arity) {
             return true;
         }
@@ -235,7 +262,7 @@ public abstract class Terms {
     ) {
         if (inTerm.equals(toReplace)) {
             return byReplacement;
-        } else if (Terms.getArity(inTerm) == 0) {
+        } else if (Terms.getArity(inTerm) < 1) {
             return inTerm;
         } else {
             final List<PrologTerm> arguments = new ArrayList<PrologTerm>();
@@ -271,6 +298,9 @@ public abstract class Terms {
     }
 
     public static String toLaTeX(final PrologTerm term, final KnowledgeBase knowledge) {
+        if (term == null) {
+            return "empty";
+        }
         if (Terms.getArity(term) == 0) {
             if (Terms.isCut(term)) {
                 return "\\textbf{!}";
@@ -359,7 +389,9 @@ public abstract class Terms {
         final PrologTerm term,
         final List<PrologTerm> predications
     ) {
-        if (Terms.isConjunction(term)) {
+        if (term == null) {
+            return predications;
+        } else if (Terms.isConjunction(term)) {
             predications.addAll(Terms.createConjunctionListOfPredications(term.arguments.getFirst()));
             return Terms.createConjunctionListOfPredications(term.arguments.getLast(), predications);
         } else {

@@ -78,7 +78,7 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
         } catch (final IllegalStateException e) {
             e.printStackTrace();
         }
-        return new EvaluationResult(graph, root.id());
+        return new EvaluationResult(graph, root.id(), "MAYBE");
     }
 
     private void evaluate(

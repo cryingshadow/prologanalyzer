@@ -10,4 +10,8 @@ public interface SymbolicEvaluationRule {
 
     String getDOTColor();
 
+    default String toJSON() {
+        return this.toString();
+    }
+
 }

@@ -57,4 +57,8 @@ public record AbstractState(List<GoalElement> goal, KnowledgeBase knowledge) {
         );
     }
 
+    public JSONAbstractState toJSON() {
+        return new JSONAbstractState(this.goal().stream().map(GoalElement::toJSON).toList(), this.knowledge());
+    }
+
 }

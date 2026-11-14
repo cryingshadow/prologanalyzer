@@ -80,6 +80,11 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String toJSON() {
+        return String.format("ONLY_EVAL(%s)", this.termination);
+    }
+
+    @Override
     public String toString() {
         return "ONLY_EVAL";
     }

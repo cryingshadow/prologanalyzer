@@ -30,7 +30,13 @@ public class DropRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String toJSON() {
+        return String.format("DROP(%d)", this.keep);
+    }
+
+    @Override
     public String toString() {
         return "DROP";
     }
+
 }

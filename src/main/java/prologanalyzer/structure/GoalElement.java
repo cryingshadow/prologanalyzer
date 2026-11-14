@@ -18,4 +18,6 @@ public interface GoalElement {
 
     boolean isScopeMarker();
 
+    JSONGoalElement toJSON();
+
 }

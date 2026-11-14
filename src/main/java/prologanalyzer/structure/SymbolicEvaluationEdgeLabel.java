@@ -13,4 +13,8 @@ public record SymbolicEvaluationEdgeLabel(SymbolicEvaluationRule rule, PrologSub
         );
     }
 
+    public JSONEdgeLabel toJSON() {
+        return new JSONEdgeLabel(this.rule().toJSON(), this.substitution());
+    }
+
 }

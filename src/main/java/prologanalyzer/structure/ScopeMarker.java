@@ -44,4 +44,9 @@ public record ScopeMarker(int scope) implements GoalElement {
         return this;
     }
 
+    @Override
+    public JSONGoalElement toJSON() {
+        return new JSONGoalElement(null, null, this.scope());
+    }
+
 }

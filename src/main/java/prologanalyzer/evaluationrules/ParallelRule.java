@@ -60,7 +60,13 @@ public class ParallelRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String toJSON() {
+        return String.format("PARALLEL(%d)", this.splitIndex);
+    }
+
+    @Override
     public String toString() {
         return "PARALLEL";
     }
+
 }

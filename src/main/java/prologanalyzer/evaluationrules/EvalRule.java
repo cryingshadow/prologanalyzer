@@ -96,6 +96,11 @@ public class EvalRule implements SymbolicEvaluationRule {
     }
 
     @Override
+    public String toJSON() {
+        return String.format("EVAL(%s)", this.termination);
+    }
+
+    @Override
     public String toString() {
         return "EVAL";
     }

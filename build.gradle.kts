@@ -16,7 +16,7 @@ dependencies {
 }
 
 application {
-    mainClass = "prologparser.Main"
+    mainClass = "prologanalyzer.Main"
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

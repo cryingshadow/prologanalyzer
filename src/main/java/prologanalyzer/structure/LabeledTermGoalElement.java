@@ -51,4 +51,13 @@ public record LabeledTermGoalElement(PrologTerm term, PrologClause clause, int s
         );
     }
 
+    @Override
+    public JSONGoalElement toJSON() {
+        return new JSONGoalElement(
+            this.term(),
+            new JSONClause(this.clause().head(), this.clause().body().orElse(null)),
+            this.scope()
+        );
+    }
+
 }
