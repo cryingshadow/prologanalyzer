@@ -12,6 +12,8 @@ public enum Flag implements Parameter {
 
     MODE("m", "mode", "Execution mode (NON_TERMINATION, TERMINATION)."),
 
+    OUTPUT("o", "output", "File for TRS output."),
+
     TIMEOUT("t", "timeout", "Timeout in ms.");
 
     private final String description;

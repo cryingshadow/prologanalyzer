@@ -102,6 +102,10 @@ public class Graph<V, E> {
         return res;
     }
 
+    public Set<Vertex<V>> getStartVertices() {
+        return this.startVertices;
+    }
+
     public Vertex<V> getVertexWithUniqueLabel(final V label) {
         return this.adjacencySets
             .keySet()

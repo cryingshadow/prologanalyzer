@@ -10,28 +10,33 @@ public class KnowledgeBase {
 
     public static boolean matchesKnowledge(
         final PrologSubstitution matcher,
-        final AbstractState child,
         final AbstractState parent,
+        final AbstractState child,
         final Set<PrologVariable> nonAbstractVariablesInMatcher,
         final Set<PrologAbstractVariable> abstractVariablesInMatcher
     ) {
-        outerLoop: for (final TermPair pair : parent.knowledge().nonUnifiable) {
-            final PrologTerm matched1 = matcher.apply(pair.term1());
-            final PrologTerm matched2 = matcher.apply(pair.term2());
-            for (final TermPair nonUnifyingInChild : child.knowledge().nonUnifiable) {
+        outerLoop: for (final TermPair pairFromChild : child.knowledge.nonUnifiable) {
+            final PrologTerm matchedInChild1 = matcher.apply(pairFromChild.term1());
+            final PrologTerm matchedInChild2 = matcher.apply(pairFromChild.term2());
+            for (final TermPair nonUnifyingInParent : parent.knowledge.nonUnifiable) {
                 if (
-                    (nonUnifyingInChild.term1().equals(matched1) && nonUnifyingInChild.term2().equals(matched2))
-                    || (nonUnifyingInChild.term1().equals(matched2) && nonUnifyingInChild.term2().equals(matched1))
+                    (
+                        nonUnifyingInParent.term1().equals(matchedInChild1)
+                        && nonUnifyingInParent.term2().equals(matchedInChild2)
+                    ) || (
+                        nonUnifyingInParent.term1().equals(matchedInChild2)
+                        && nonUnifyingInParent.term2().equals(matchedInChild1)
+                    )
                 ) {
                     continue outerLoop;
                 }
             }
-            for (final TermPair nonUnifyingInChild : child.knowledge().nonUnifiable) {
+            for (final TermPair nonUnifyingInParent : parent.knowledge.nonUnifiable) {
                 if (
-                    KnowledgeBase.isNonAbstractAndUnusedRenaming(
-                        matched1,
-                        matched2,
-                        nonUnifyingInChild,
+                    KnowledgeBase.isNonAbstractAndUnusedMatching(
+                        matchedInChild1,
+                        matchedInChild2,
+                        nonUnifyingInParent,
                         nonAbstractVariablesInMatcher,
                         abstractVariablesInMatcher,
                         matcher
@@ -43,17 +48,17 @@ public class KnowledgeBase {
             return false;
         }
         final Set<PrologVariable> matchedFreeVariables = new LinkedHashSet<PrologVariable>();
-        for (final PrologVariable variable : parent.knowledge().free) {
+        for (final PrologVariable variable : child.knowledge.free) {
             PrologVariable variableToAdd = null;
             if (matcher.containsKey(variable)) {
                 variableToAdd = (PrologVariable)matcher.get(variable);
-                if (!child.knowledge().isFree(variableToAdd)) {
+                if (!parent.knowledge.isFree(variableToAdd)) {
                     return false;
                 }
             } else {
-                if (!child.knowledge().isFree(variable)) {
+                if (!parent.knowledge.isFree(variable)) {
                     if (!nonAbstractVariablesInMatcher.contains(variable)) {
-                        final Set<PrologVariable> free = new LinkedHashSet<PrologVariable>(child.knowledge().free);
+                        final Set<PrologVariable> free = new LinkedHashSet<PrologVariable>(parent.knowledge.free);
                         free.removeAll(nonAbstractVariablesInMatcher);
                         if (!free.isEmpty()) {
                             matcher.put(variable, free.iterator().next());
@@ -81,15 +86,15 @@ public class KnowledgeBase {
                 }
             }
         }
-        for (final PrologAbstractVariable variable : parent.knowledge().ground) {
+        for (final PrologAbstractVariable variable : child.knowledge.ground) {
             if (matcher.containsKey(variable)) {
-                if (!child.knowledge().isGround(matcher.get(variable))) {
+                if (!parent.knowledge.isGround(matcher.get(variable))) {
                     return false;
                 }
-            } else if (!child.knowledge().isGround(variable)) {
+            } else if (!parent.knowledge.isGround(variable)) {
                 if (
-                    parent.containsVariableInGoal(variable)
-                    || child.containsVariable(variable)
+                    child.containsVariableInGoal(variable)
+                    || parent.containsVariable(variable)
                     || abstractVariablesInMatcher.contains(variable)
                 ) {
                     return false;
@@ -99,19 +104,20 @@ public class KnowledgeBase {
         return true;
     }
 
-    private static boolean isNonAbstractAndUnusedRenaming(
+    private static boolean isNonAbstractAndUnusedMatching(
         final PrologSubstitution matcher1,
         final PrologSubstitution matcher2,
         final Set<PrologVariable> nonAbstractVariablesInMatcher,
         final Set<PrologAbstractVariable> abstractVariablesInMatcher,
         final PrologSubstitution matcher
     ) {
-        final PrologSubstitution renaming = PrologSubstitution.combineToConsistentVariableRenaming(matcher1, matcher2);
+        final PrologSubstitution combinedMatcher =
+            PrologSubstitution.combineToConsistentMatching(matcher1, matcher2);
         final Set<PrologVariable> nextNonAbstractVariablesInMatcher = new LinkedHashSet<PrologVariable>();
         final Set<PrologAbstractVariable> nextAbstractVariablesInMatcher = new LinkedHashSet<PrologAbstractVariable>();
         boolean ok = true;
-        if (renaming != null) {
-            for (final Map.Entry<PrologVariable, PrologTerm> entry : renaming.entrySet()) {
+        if (combinedMatcher != null) {
+            for (final Map.Entry<PrologVariable, PrologTerm> entry : combinedMatcher.entrySet()) {
                 final PrologVariable key = entry.getKey();
                 final PrologVariable value = (PrologVariable)entry.getValue();
                 if (
@@ -137,7 +143,7 @@ public class KnowledgeBase {
                 }
             }
             if (ok) {
-                for (final Map.Entry<PrologVariable, PrologTerm> entry : renaming.entrySet()) {
+                for (final Map.Entry<PrologVariable, PrologTerm> entry : combinedMatcher.entrySet()) {
                     matcher.put(entry.getKey(), entry.getValue());
                 }
                 nonAbstractVariablesInMatcher.addAll(nextNonAbstractVariablesInMatcher);
@@ -148,29 +154,52 @@ public class KnowledgeBase {
         return false;
     }
 
-    private static boolean isNonAbstractAndUnusedRenaming(
-        final PrologTerm matched1,
-        final PrologTerm matched2,
-        final TermPair nonUnifyingInChild,
+    private static boolean isNonAbstractAndUnusedMatching(
+        final PrologTerm matchedInChild1,
+        final PrologTerm matchedInChild2,
+        final TermPair nonUnifyingInParent,
         final Set<PrologVariable> nonAbstractVariablesInMatcher,
         final Set<PrologAbstractVariable> abstractVariablesInMatcher,
         final PrologSubstitution matcher
     ) {
         return
-            KnowledgeBase.isNonAbstractAndUnusedRenaming(
-                Terms.calculateMatcherWithAbstractVariables(matched1, nonUnifyingInChild.term1()),
-                Terms.calculateMatcherWithAbstractVariables(matched2, nonUnifyingInChild.term2()),
+            KnowledgeBase.isNonAbstractAndUnusedMatching(
+                Terms.calculateMatcherWithAbstractVariables(matchedInChild1, nonUnifyingInParent.term1()),
+                Terms.calculateMatcherWithAbstractVariables(matchedInChild2, nonUnifyingInParent.term2()),
                 nonAbstractVariablesInMatcher,
                 abstractVariablesInMatcher,
                 matcher
-            )
-            || KnowledgeBase.isNonAbstractAndUnusedRenaming(
-                Terms.calculateMatcherWithAbstractVariables(matched1, nonUnifyingInChild.term1()),
-                Terms.calculateMatcherWithAbstractVariables(matched2, nonUnifyingInChild.term2()),
+            ) || KnowledgeBase.isNonAbstractAndUnusedMatching(
+                Terms.calculateMatcherWithAbstractVariables(matchedInChild1, nonUnifyingInParent.term1()),
+                Terms.calculateMatcherWithAbstractVariables(matchedInChild2, nonUnifyingInParent.term2()),
                 nonAbstractVariablesInMatcher,
                 abstractVariablesInMatcher,
                 matcher
             );
+    }
+
+    private static PrologTerm replaceByFreshFreeVariable(
+        final PrologTerm term,
+        final int atNesting,
+        final Set<PrologVariable> free,
+        final FreshNameGenerator fridge
+    ) {
+        if (atNesting <= 0) {
+            final PrologVariable variable =
+                new PrologVariable(fridge.getFreshName(Terms.DEFAULT_NON_ABSTRACT_VARIABLE_NAME));
+            free.add(variable);
+            return variable;
+        }
+        if (term.arguments.isEmpty()) {
+            return term;
+        }
+        return new PrologTerm(
+            term.name,
+            term
+            .arguments
+            .stream()
+            .map(argument -> KnowledgeBase.replaceByFreshFreeVariable(argument, atNesting - 1, free, fridge))
+            .toList());
     }
 
     private final Set<PrologVariable> free;
@@ -293,6 +322,55 @@ public class KnowledgeBase {
         );
     }
 
+    public KnowledgeBase cleanAndRestrictToVariables(final Set<PrologVariable> variables) {
+        final Set<TermPair> nonUnifiable = new LinkedHashSet<TermPair>();
+        outer: for (final TermPair pair : this.nonUnifiable) {
+            if (
+                MGUComputer.computeMGUWithOnlyFreshVariables(
+                    pair.term1(),
+                    pair.term2(),
+                    new FreshNameGenerator()
+                ).isEmpty()
+            ) {
+                continue;
+            }
+            for (final TermPair in : nonUnifiable) {
+                if (this.isRenaming(pair, in)) {
+                    continue outer;
+                }
+            }
+            nonUnifiable.add(pair);
+        }
+        final Set<PrologVariable> toRetain = new LinkedHashSet<PrologVariable>(variables);
+        for (final TermPair pair : nonUnifiable) {
+            toRetain.addAll(Terms.createSetOfAllVariables(pair.term1()));
+            toRetain.addAll(Terms.createSetOfAllVariables(pair.term2()));
+        }
+        final Set<PrologAbstractVariable> ground = new TreeSet<PrologAbstractVariable>(this.ground);
+        final Set<PrologVariable> free = new TreeSet<PrologVariable>(this.free);
+        ground.retainAll(toRetain);
+        free.retainAll(toRetain);
+        return new KnowledgeBase(ground, nonUnifiable, free);
+    }
+
+    public KnowledgeBase concretize(final int maxNesting, final FreshNameGenerator fridge) {
+        final Set<TermPair> nextNonUnifiable = new LinkedHashSet<TermPair>();
+        final Set<PrologVariable> nextFree = new TreeSet<PrologVariable>(this.free);
+        for (final TermPair pair : this.nonUnifiable) {
+            if (Terms.maxNesting(pair.term1()) <= maxNesting && Terms.maxNesting(pair.term2()) <= maxNesting) {
+                nextNonUnifiable.add(pair);
+            } else {
+                nextNonUnifiable.add(
+                    new TermPair(
+                        KnowledgeBase.replaceByFreshFreeVariable(pair.term1(), 2, nextFree, fridge),
+                        KnowledgeBase.replaceByFreshFreeVariable(pair.term2(), 2, nextFree, fridge)
+                    )
+                );
+            }
+        }
+        return new KnowledgeBase(this.ground, nextNonUnifiable, nextFree);
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (o instanceof final KnowledgeBase other) {
@@ -379,11 +457,72 @@ public class KnowledgeBase {
         return this.ground.containsAll(variables);
     }
 
+    public int maxNesting() {
+        int result = 0;
+        for (final TermPair pair : this.nonUnifiable) {
+            result = Math.max(result, Terms.maxNesting(pair.term1()));
+            result = Math.max(result, Terms.maxNesting(pair.term2()));
+        }
+        return result;
+    }
+
     public KnowledgeBase removeFree(final Set<PrologVariable> variables) {
         final Set<PrologVariable> newFree = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
         newFree.addAll(this.free);
         newFree.removeAll(variables);
         return new KnowledgeBase(this.ground, this.nonUnifiable, newFree);
+    }
+
+    public boolean respectsFree(final PrologSubstitution matcher, final KnowledgeBase parentKnowledge) {
+        for (final PrologVariable variable : this.free) {
+            final PrologTerm matched = matcher.apply(variable);
+            if (!Terms.isNonAbstractVariable(matched) || !parentKnowledge.isFree((PrologVariable)matched)) {
+                return false;
+            }
+        }
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.restrictToAbstractVariables().entrySet()) {
+            if (
+                Terms
+                .createSetOfAllNonAbstractVariables(entry.getValue())
+                .stream()
+                .anyMatch(parentKnowledge.free::contains)
+            ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean respectsNonUnification(final PrologSubstitution matcher, final KnowledgeBase parentKnowledge) {
+        outer: for (final TermPair childPair : this.nonUnifiable) {
+            final TermPair matched = new TermPair(matcher.apply(childPair.term1()), matcher.apply(childPair.term2()));
+            final FreshNameGenerator fridge =
+                new FreshNameGenerator(
+                    Stream.concat(
+                        Terms.createSetOfAllVariables(matched.term1()).stream(),
+                        Terms.createSetOfAllVariables(matched.term2()).stream()
+                    ).map(PrologVariable::name)
+                    .collect(Collectors.toSet())
+                );
+            final Optional<PrologSubstitution> optionalMGU =
+                MGUComputer.computeMGUWithOnlyFreshVariables(matched.term1(), matched.term2(), fridge);
+            if (optionalMGU.isEmpty()) {
+                continue;
+            }
+            final PrologSubstitution mgu = optionalMGU.get();
+            for (final TermPair parentPair : parentKnowledge.nonUnifiable) {
+                final Optional<PrologSubstitution> secondMGU =
+                    MGUComputer.computeMGU(mgu.apply(parentPair.term1()), mgu.apply(parentPair.term2()));
+                if (secondMGU.isEmpty()) {
+                    continue;
+                }
+                if (secondMGU.get().keySet().stream().allMatch(Terms::isNonAbstractVariable)) {
+                    continue outer;
+                }
+            }
+            return false;
+        }
+        return true;
     }
 
     public PrologSubstitution restrictToFree(final PrologSubstitution substitution) {
@@ -394,14 +533,24 @@ public class KnowledgeBase {
         return substitution.restrict(this.ground);
     }
 
+    public Set<PrologAbstractVariable> restrictToGround(final Set<PrologVariable> variables) {
+        final Set<PrologAbstractVariable> result = new TreeSet<PrologAbstractVariable>();
+        for (final PrologVariable variable : variables) {
+            if (this.ground.contains(variable)) {
+                result.add((PrologAbstractVariable)variable);
+            }
+        }
+        return result;
+    }
+
     public Set<PrologVariable> restrictToNonFree(final Set<PrologVariable> variables) {
         final Set<PrologVariable> result = new LinkedHashSet<PrologVariable>(variables);
         result.removeAll(this.free);
         return result;
     }
 
-    public Set<PrologAbstractVariable> restrictToNonGround(final Set<PrologAbstractVariable> variables) {
-        final Set<PrologAbstractVariable> result = new LinkedHashSet<PrologAbstractVariable>(variables);
+    public Set<PrologVariable> restrictToNonGround(final Set<? extends PrologVariable> variables) {
+        final Set<PrologVariable> result = new TreeSet<PrologVariable>(variables);
         result.removeAll(this.ground);
         return result;
     }
@@ -457,6 +606,46 @@ public class KnowledgeBase {
             .stream()
             .flatMap(variable -> Terms.createSetOfAllAbstractVariables(substitution.apply(variable)).stream())
             .collect(Collectors.toCollection(() -> new TreeSet<PrologAbstractVariable>(PrologTermComparator.INSTANCE)));
+    }
+
+    private PrologSubstitution computeMatcher(final TermPair pair1, final TermPair pair2, final boolean reverse) {
+        final PrologTerm term1 = new PrologTerm(",", List.of(pair1.term1(), pair1.term2()));
+        final PrologTerm term2 =
+            new PrologTerm(
+                ",",
+                reverse ? List.of(pair2.term2(), pair1.term2()) : List.of(pair2.term1(), pair2.term2())
+            );
+        return Terms.calculateMatcher(term1, term2);
+    }
+
+    private boolean isRenaming(final PrologSubstitution matcher) {
+        if (matcher == null) {
+            return false;
+        }
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
+            if (!Terms.isVariable(entry.getValue())) {
+                return false;
+            }
+            if (Terms.isAbstractVariable(entry.getValue())) {
+                if (
+                    !Terms.isAbstractVariable(entry.getKey())
+                    || this.isGround(entry.getValue()) != this.isGround(entry.getKey())
+                ) {
+                    return false;
+                }
+            } else {
+                if (this.isFree(entry.getKey()) != this.isFree((PrologVariable)entry.getValue())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isRenaming(final TermPair pair1, final TermPair pair2) {
+        final PrologSubstitution matcher1 = this.computeMatcher(pair1, pair2, false);
+        final PrologSubstitution matcher2 = this.computeMatcher(pair1, pair2, true);
+        return this.isRenaming(matcher1) || this.isRenaming(matcher2);
     }
 
 }

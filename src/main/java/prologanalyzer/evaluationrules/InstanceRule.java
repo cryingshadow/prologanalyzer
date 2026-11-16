@@ -9,51 +9,49 @@ import prologparser.*;
 public class InstanceRule implements SymbolicEvaluationRule {
 
     public static PrologSubstitution calculateInstanceMatcher(
-        final AbstractState child,
         final AbstractState parent,
+        final AbstractState child,
         final boolean noGroundLoss
     ) {
-        if (child.goal().size() != parent.goal().size()) {
+        if (parent.goal.size() != child.goal.size()) {
             return null;
         }
-        final PrologSubstitution res = new PrologSubstitution();
-        final Set<PrologVariable> used = new LinkedHashSet<PrologVariable>();
-        final Set<PrologVariable> nonAbstractVariablesInMatcher = new LinkedHashSet<PrologVariable>();
-        for (int i = 0; i < child.goal().size(); i++) {
+        final PrologSubstitution matcher = new PrologSubstitution();
+        final Map<Integer, Integer> scopeMatcher = new LinkedHashMap<Integer, Integer>();
+        for (int i = 0; i < parent.goal.size(); i++) {
             if (
                 !InstanceRule.calculateInstanceMatcher(
-                    child.goal().get(i),
-                    parent.goal().get(i),
-                    child.knowledge(),
-                    parent.knowledge(),
-                    used,
-                    nonAbstractVariablesInMatcher,
-                    res
+                    parent.goal.get(i),
+                    child.goal.get(i),
+                    parent.knowledge,
+                    child.knowledge,
+                    matcher,
+                    scopeMatcher
                 )
             ) {
                 return null;
             }
         }
-        if (InstanceRule.checkInstanceMatcher(child, parent, res, used, nonAbstractVariablesInMatcher, noGroundLoss)) {
-            return res;
+        if (InstanceRule.checkInstanceMatcher(parent, child, matcher, scopeMatcher, noGroundLoss)) {
+            return matcher;
         }
         return null;
     }
 
     public static int calculateMaximalStateLengthForInstance(
-        final AbstractState child,
         final AbstractState parent,
+        final AbstractState child,
         final boolean noGroundLoss
     ) {
-        for (int i = child.goal().size(); i > 0; i--) {
+        for (int i = parent.goal.size(); i > 0; i--) {
             final List<GoalElement> goal = new ArrayList<GoalElement>();
             for (int j = 0; j < i; j++) {
-                goal.add(child.goal().get(j));
+                goal.add(parent.goal.get(j));
             }
             if (
                 InstanceRule.calculateInstanceMatcher(
-                    new AbstractState(goal, child.knowledge()),
-                    parent,
+                    new AbstractState(goal, parent.knowledge),
+                    child,
                     noGroundLoss
                 ) != null
             ) {
@@ -64,60 +62,55 @@ public class InstanceRule implements SymbolicEvaluationRule {
     }
 
     public static boolean checkInstanceMatcher(
-        final AbstractState child,
         final AbstractState parent,
+        final AbstractState child,
         final PrologSubstitution matcher,
+        final Map<Integer, Integer> scopeMatcher,
         final boolean noGroundLoss
     ) {
-        final Set<PrologVariable> nonAbstractVariablesInMatcher = new LinkedHashSet<PrologVariable>();
-        final Set<PrologVariable> used = new LinkedHashSet<PrologVariable>();
-        for (final PrologVariable variable : matcher.keySet()) {
-            if (Terms.isNonAbstractVariable(variable)) {
-                used.add(variable);
-            }
-        }
-        for (final GoalElement element : parent.goal()) {
-            if (!element.isScopeMarker()) {
-                nonAbstractVariablesInMatcher.addAll(Terms.createSetOfAllNonAbstractVariables(element.getTerm()));
-            }
-        }
-        return InstanceRule.checkInstanceMatcher(
-            child,
-            parent,
-            matcher,
-            used,
-            nonAbstractVariablesInMatcher,
-            noGroundLoss
-        );
+        final PrologSubstitution matcherOnNonAbstract = matcher.restrictToNonAbstractVariables();
+        return
+            InstanceRule.isRenaming(scopeMatcher)
+            && InstanceRule.isRenaming(matcherOnNonAbstract)
+            && InstanceRule.respectsGround(child.createSetOfAllGroundVariablesInGoal(), matcher, parent.knowledge)
+            && child.knowledge.respectsFree(matcher, parent.knowledge)
+            && child.knowledge.respectsNonUnification(matcher, parent.knowledge)
+            && (!noGroundLoss || InstanceRule.noGroundLoss(matcher, parent.knowledge, child.knowledge));
     }
 
     private static boolean calculateInstanceMatcher(
-        final GoalElement childElement,
         final GoalElement parentElement,
-        final KnowledgeBase childKnowledge,
+        final GoalElement childElement,
         final KnowledgeBase parentKnowledge,
-        final Set<PrologVariable> used,
-        final Set<PrologVariable> nonAbstractVariablesInMatcher,
-        final PrologSubstitution matcher
+        final KnowledgeBase childKnowledge,
+        final PrologSubstitution matcher,
+        final Map<Integer, Integer> scopeMatcher
     ) {
-        if (childElement.isScopeMarker()) {
-            if (parentElement.isScopeMarker()) {
-                return childElement.getScope() == parentElement.getScope();
+        if (parentElement.isScopeMarker()) {
+            if (childElement.isScopeMarker()) {
+                if (scopeMatcher.containsKey(childElement.getScope())) {
+                    return parentElement.getScope() == scopeMatcher.get(childElement.getScope());
+                }
+                scopeMatcher.put(childElement.getScope(), parentElement.getScope());
+                return true;
             } else {
                 return false;
             }
-        } else if (childElement.hasClause()) {
-            if (!parentElement.isScopeMarker() && parentElement.hasClause()) {
-                if (childElement.getClause() == parentElement.getClause()) {
-                    nonAbstractVariablesInMatcher.addAll(
-                        Terms.createSetOfAllNonAbstractVariables(parentElement.getTerm())
-                    );
+        } else if (parentElement.hasClause()) {
+            if (!childElement.isScopeMarker() && childElement.hasClause()) {
+                if (parentElement.getClause() == childElement.getClause()) {
+                    if (scopeMatcher.containsKey(childElement.getScope())) {
+                        if (parentElement.getScope() != scopeMatcher.get(childElement.getScope())) {
+                            return false;
+                        }
+                    } else {
+                        scopeMatcher.put(childElement.getScope(), parentElement.getScope());
+                    }
                     return InstanceRule.calculateInstanceMatcher(
-                        childElement.getTerm(),
                         parentElement.getTerm(),
-                        childKnowledge,
+                        childElement.getTerm(),
                         parentKnowledge,
-                        used,
+                        childKnowledge,
                         matcher
                     );
                 } else {
@@ -126,14 +119,12 @@ public class InstanceRule implements SymbolicEvaluationRule {
             } else {
                 return false;
             }
-        } else if (!parentElement.isScopeMarker() && !parentElement.hasClause()) {
-            nonAbstractVariablesInMatcher.addAll(Terms.createSetOfAllNonAbstractVariables(parentElement.getTerm()));
+        } else if (!childElement.isScopeMarker() && !childElement.hasClause()) {
             return InstanceRule.calculateInstanceMatcher(
-                childElement.getTerm(),
                 parentElement.getTerm(),
-                childKnowledge,
+                childElement.getTerm(),
                 parentKnowledge,
-                used,
+                childKnowledge,
                 matcher
             );
         } else {
@@ -142,54 +133,51 @@ public class InstanceRule implements SymbolicEvaluationRule {
     }
 
     private static boolean calculateInstanceMatcher(
-        final PrologTerm childTerm,
         final PrologTerm parentTerm,
-        final KnowledgeBase childKnowledge,
+        final PrologTerm childTerm,
         final KnowledgeBase parentKnowledge,
-        final Set<PrologVariable> used,
+        final KnowledgeBase childKnowledge,
         final PrologSubstitution matcher
     ) {
-        if (Terms.isVariable(parentTerm)) {
-            if (matcher.containsKey(parentTerm)) {
-                return childTerm.equals(matcher.get(parentTerm));
-            } else if (parentTerm.equals(childTerm)) {
-                return !parentKnowledge.isGround(parentTerm) || childKnowledge.isGround(childTerm);
-            } else if (Terms.isAbstractVariable(parentTerm)) {
-                if (parentKnowledge.isGround(parentTerm) && !childKnowledge.isGround(childTerm)) {
+        if (Terms.isVariable(childTerm)) {
+            if (matcher.containsKey(childTerm)) {
+                return parentTerm.equals(matcher.get(childTerm));
+            } else if (childTerm.equals(parentTerm)) {
+                return !childKnowledge.isGround(childTerm) || parentKnowledge.isGround(parentTerm);
+            } else if (Terms.isAbstractVariable(childTerm)) {
+                if (childKnowledge.isGround(childTerm) && !parentKnowledge.isGround(parentTerm)) {
                     return false;
                 }
-                matcher.put((PrologVariable)parentTerm, childTerm);
+                matcher.put((PrologVariable)childTerm, parentTerm);
                 return true;
-            } else if (Terms.isNonAbstractVariable(childTerm) && !used.contains(childTerm)) {
-                used.add((PrologVariable)childTerm);
-                matcher.put((PrologVariable)parentTerm, childTerm);
+            } else if (Terms.isNonAbstractVariable(parentTerm)) {
+                matcher.put((PrologVariable)childTerm, parentTerm);
                 return true;
             } else {
                 return false;
             }
-        } else if (Terms.isCut(parentTerm)) {
-            if (Terms.isCut(childTerm)) {
-                if (parentTerm instanceof LabeledCut) {
-                    if (childTerm instanceof LabeledCut) {
-                        return ((LabeledCut)childTerm).scope == ((LabeledCut)parentTerm).scope;
+        } else if (Terms.isCut(childTerm)) {
+            if (Terms.isCut(parentTerm)) {
+                if (childTerm instanceof LabeledCut) {
+                    if (parentTerm instanceof LabeledCut) {
+                        return ((LabeledCut)parentTerm).scope == ((LabeledCut)childTerm).scope;
                     } else {
                         return false;
                     }
                 } else {
-                    return !(childTerm instanceof LabeledCut);
+                    return !(parentTerm instanceof LabeledCut);
                 }
             } else {
                 return false;
             }
-        } else if (!Terms.isVariable(childTerm) && Terms.haveSameFunctionSymbol(parentTerm, childTerm)) {
-            for (int i = 0; i < Terms.getArity(parentTerm); i++) {
+        } else if (!Terms.isVariable(parentTerm) && Terms.haveSameFunctionSymbol(childTerm, parentTerm)) {
+            for (int i = 0; i < Terms.getArity(childTerm); i++) {
                 if (
                     !InstanceRule.calculateInstanceMatcher(
-                        childTerm.arguments.get(i),
                         parentTerm.arguments.get(i),
-                        childKnowledge,
+                        childTerm.arguments.get(i),
                         parentKnowledge,
-                        used,
+                        childKnowledge,
                         matcher
                     )
                 ) {
@@ -202,51 +190,49 @@ public class InstanceRule implements SymbolicEvaluationRule {
         }
     }
 
-    private static boolean checkInstanceMatcher(
-        final AbstractState child,
-        final AbstractState parent,
+    private static boolean isRenaming(final Map<Integer, Integer> scopeMatcher) {
+        final Set<Integer> used = new LinkedHashSet<Integer>();
+        for (final Map.Entry<Integer, Integer> entry : scopeMatcher.entrySet()) {
+            if (used.contains(entry.getValue())) {
+                return false;
+            }
+            used.add(entry.getValue());
+        }
+        return true;
+    }
+
+    private static boolean isRenaming(final PrologSubstitution matcher) {
+        final Set<PrologVariable> used = new LinkedHashSet<PrologVariable>();
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
+            if (!Terms.isNonAbstractVariable(entry.getValue()) || used.contains(entry.getValue())) {
+                return false;
+            }
+            used.add((PrologVariable)entry.getValue());
+        }
+        return true;
+    }
+
+    private static boolean noGroundLoss(
         final PrologSubstitution matcher,
-        final Set<PrologVariable> used,
-        final Set<PrologVariable> nonAbstractVariablesInMatcher,
-        final boolean noGroundLoss
+        final KnowledgeBase parentKnowledge,
+        final KnowledgeBase childKnowledge
     ) {
-        final KnowledgeBase childKnowledge = child.knowledge();
-        final KnowledgeBase parentKnowledge = parent.knowledge();
-        final Set<PrologAbstractVariable> abstractVariablesInMatcher = new LinkedHashSet<PrologAbstractVariable>();
-        for (final PrologVariable variable : child.createSetOfAllVariablesInGoal()) {
-            if (Terms.isAbstractVariable(variable)) {
-                abstractVariablesInMatcher.add((PrologAbstractVariable)variable);
-            }
-        }
-        for (final PrologVariable variable : parent.createSetOfAllVariablesInGoal()) {
-            if (Terms.isAbstractVariable(variable)) {
-                abstractVariablesInMatcher.add((PrologAbstractVariable)variable);
-            }
-        }
-        used.retainAll(nonAbstractVariablesInMatcher);
-        for (final PrologVariable variable : used) {
-            if (!matcher.containsKey(variable)) {
+        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
+            if (parentKnowledge.isGround(entry.getValue()) && !childKnowledge.isGround(entry.getKey())) {
                 return false;
             }
         }
-        if (
-            !KnowledgeBase.matchesKnowledge(
-                matcher,
-                child,
-                parent,
-                nonAbstractVariablesInMatcher,
-                abstractVariablesInMatcher
-            )
-        ) {
-            return false;
-        }
-        if (noGroundLoss) {
-            for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
-                if (childKnowledge.isGround(entry.getValue()) && !parentKnowledge.isGround(entry.getKey())) {
-                    if (parent.containsVariable(entry.getKey())) {
-                        return false;
-                    }
-                }
+        return true;
+    }
+
+    private static boolean respectsGround(
+        final Set<PrologAbstractVariable> ground,
+        final PrologSubstitution matcher,
+        final KnowledgeBase parentKnowledge
+    ) {
+        for (final PrologAbstractVariable variable : ground) {
+            if (!parentKnowledge.isGround(matcher.apply(variable))) {
+                return false;
             }
         }
         return true;

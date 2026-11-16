@@ -61,15 +61,15 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
         return null;
     }
 
-    public static PrologSubstitution combineToConsistentVariableRenaming(
+    public static PrologSubstitution combineToConsistentMatching(
         final PrologSubstitution substitution1,
         final PrologSubstitution substitution2
     ) {
         if (substitution1 != null && substitution2 != null) {
             final PrologSubstitution result = new PrologSubstitution();
             if (
-                PrologSubstitution.combineToConsistentVariableRenaming(substitution1, substitution2, result)
-                && PrologSubstitution.combineToConsistentVariableRenaming(substitution2, substitution1, result)
+                PrologSubstitution.combineToConsistentMatching(substitution1, substitution2, result)
+                && PrologSubstitution.combineToConsistentMatching(substitution2, substitution1, result)
             ) {
                 return result;
             }
@@ -135,7 +135,7 @@ public class PrologSubstitution extends LinkedHashMap<PrologVariable, PrologTerm
         return result;
     }
 
-    private static boolean combineToConsistentVariableRenaming(
+    private static boolean combineToConsistentMatching(
         final PrologSubstitution substitution1,
         final PrologSubstitution substitution2,
         final PrologSubstitution result

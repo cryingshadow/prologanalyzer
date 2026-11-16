@@ -14,10 +14,10 @@ public class CaseRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.hasTerm() || firstGoal.hasClause()) {
             return List.of();
         }
@@ -35,9 +35,12 @@ public class CaseRule implements SymbolicEvaluationRule {
             newGoal.add(new LabeledTermGoalElement(firstGoal.getTerm(), clause, scope));
         }
         newGoal.add(new ScopeMarker(scope));
-        newGoal.addAll(state.goal().stream().skip(1).toList());
+        newGoal.addAll(state.goal.stream().skip(1).toList());
         return List.of(
-            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+            new SymbolicEvaluationResult(
+                new AbstractState(newGoal, state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            )
         );
     }
 

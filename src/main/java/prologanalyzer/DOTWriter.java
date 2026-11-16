@@ -12,7 +12,6 @@ public abstract class DOTWriter {
 
     public static void writeDOTFile(
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
-        final BigInteger rootId,
         final boolean showNumbers,
         final File outputFile
     ) throws IOException {
@@ -34,7 +33,7 @@ public abstract class DOTWriter {
                     writer.write(from.label().get().toString());
                     writer.write("\", ");
                 }
-                if (from.id().equals(rootId)) {
+                if (graph.isStartVertex(from)) {
                     writer.write("fontsize=16, style=filled, fillcolor=lightyellow, color=red");
                 } else {
                     writer.write("fontsize=16, style=filled, fillcolor=lightyellow");

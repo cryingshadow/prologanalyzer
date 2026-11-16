@@ -14,10 +14,10 @@ public class SplitRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().size() != 1 || !state.goal().getFirst().hasTerm() || state.goal().getFirst().hasClause()) {
+        if (state.goal.size() != 1 || !state.goal.getFirst().hasTerm() || state.goal.getFirst().hasClause()) {
             return List.of();
         }
-        final PrologTerm term = state.goal().getFirst().getTerm();
+        final PrologTerm term = state.goal.getFirst().getTerm();
         if (!Terms.isConjunction(term) || Terms.getArity(term) < 2) {
             return List.of();
         }
@@ -26,27 +26,27 @@ public class SplitRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologTerm tailOfConjunction = Terms.removeFirstConjunct(term);
-        final Set<PrologVariable> freeVariablesInTerm = state.knowledge().freeVariables(headOfConjunction);
+        final Set<PrologVariable> freeVariablesInTerm = state.knowledge.freeVariables(headOfConjunction);
         final Set<PrologVariable> toRename = new LinkedHashSet<PrologVariable>();
-        if (state.knowledge().isGround(Terms.createSetOfAllAbstractVariables(term))) {
-            if (state.knowledge().isFree(Terms.createSetOfAllNonAbstractVariables(term))) {
+        if (state.knowledge.isGround(Terms.createSetOfAllAbstractVariables(term))) {
+            if (state.knowledge.isFree(Terms.createSetOfAllNonAbstractVariables(term))) {
                 toRename.addAll(freeVariablesInTerm);
             } else {
                 toRename.addAll(Terms.createSetOfAllNonAbstractVariables(term));
-                toRename.addAll(state.knowledge().restrictToNonGround(state.knowledge().getAllAbstractVariables()));
+                toRename.addAll(state.knowledge.restrictToNonGround(state.knowledge.getAllAbstractVariables()));
                 toRename.addAll(
-                    state.knowledge().restrictToNonGround(Terms.createSetOfAllAbstractVariables(tailOfConjunction))
+                    state.knowledge.restrictToNonGround(Terms.createSetOfAllAbstractVariables(tailOfConjunction))
                 );
             }
         } else {
             toRename.addAll(freeVariablesInTerm);
-            toRename.addAll(state.knowledge().restrictToNonGround(state.knowledge().getAllAbstractVariables()));
+            toRename.addAll(state.knowledge.restrictToNonGround(state.knowledge.getAllAbstractVariables()));
             toRename.addAll(
-                state.knowledge().restrictToNonGround(Terms.createSetOfAllAbstractVariables(tailOfConjunction))
+                state.knowledge.restrictToNonGround(Terms.createSetOfAllAbstractVariables(tailOfConjunction))
             );
-            toRename.addAll(state.knowledge().restrictToNonFree(state.knowledge().getAllNonAbstractVariables()));
+            toRename.addAll(state.knowledge.restrictToNonFree(state.knowledge.getAllNonAbstractVariables()));
             toRename.addAll(
-                state.knowledge().restrictToNonFree(Terms.createSetOfAllNonAbstractVariables(tailOfConjunction))
+                state.knowledge.restrictToNonFree(Terms.createSetOfAllNonAbstractVariables(tailOfConjunction))
             );
         }
         final PrologSubstitution answerApproximation = new PrologSubstitution();
@@ -59,18 +59,21 @@ public class SplitRule implements SymbolicEvaluationRule {
         final Set<PrologAbstractVariable> newGround = new LinkedHashSet<PrologAbstractVariable>();
         return List.of(
             new SymbolicEvaluationResult(
-                new AbstractState(List.of(new TermGoalElement(headOfConjunction)), state.knowledge()),
+                new AbstractState(
+                    List.of(new TermGoalElement(headOfConjunction)),
+                    state.knowledge
+                ).restrictKnowledgeToExistingVariables(),
                 new PrologSubstitution()
             ),
             new SymbolicEvaluationResult(
                 new AbstractState(
                     List.of(new TermGoalElement(answerApproximation.apply(tailOfConjunction))),
                     state
-                    .knowledge()
+                    .knowledge
                     .addGround(newGround)
                     .removeFree(freeVariablesInTerm)
                     .applyToNonUnification(answerApproximation)
-                ),
+                ).restrictKnowledgeToExistingVariables(),
                 answerApproximation
             )
         );

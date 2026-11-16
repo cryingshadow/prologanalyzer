@@ -14,10 +14,10 @@ public class FocusRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().size() != 1 || !state.goal().getFirst().hasTerm() || state.goal().getFirst().hasClause()) {
+        if (state.goal.size() != 1 || !state.goal.getFirst().hasTerm() || state.goal.getFirst().hasClause()) {
             return List.of();
         }
-        final PrologTerm term = state.goal().getFirst().getTerm();
+        final PrologTerm term = state.goal.getFirst().getTerm();
         if (!Terms.isConjunction(term) || Terms.getArity(term) < 2) {
             return List.of();
         }
@@ -27,7 +27,10 @@ public class FocusRule implements SymbolicEvaluationRule {
         }
         return List.of(
             new SymbolicEvaluationResult(
-                new AbstractState(List.of(new TermGoalElement(headOfConjunction)), state.knowledge()),
+                new AbstractState(
+                    List.of(new TermGoalElement(headOfConjunction)),
+                    state.knowledge
+                ).restrictKnowledgeToExistingVariables(),
                 new PrologSubstitution()
             )
         );

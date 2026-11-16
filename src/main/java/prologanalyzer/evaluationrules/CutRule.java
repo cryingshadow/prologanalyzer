@@ -14,10 +14,10 @@ public class CutRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.hasTerm()) {
             return List.of();
         }
@@ -32,7 +32,7 @@ public class CutRule implements SymbolicEvaluationRule {
         final List<GoalElement> newGoal = new ArrayList<GoalElement>();
         newGoal.add(new TermGoalElement(Terms.removeFirstConjunct(firstGoal.getTerm())));
         boolean found = false;
-        for (final GoalElement element : state.goal()) {
+        for (final GoalElement element : state.goal) {
             if (found) {
                 newGoal.add(element);
             } else if (element.isScopeMarker() && element.getScope() == scope) {
@@ -44,7 +44,10 @@ public class CutRule implements SymbolicEvaluationRule {
             return List.of();
         }
         return List.of(
-            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+            new SymbolicEvaluationResult(
+                new AbstractState(newGoal, state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            )
         );
     }
 

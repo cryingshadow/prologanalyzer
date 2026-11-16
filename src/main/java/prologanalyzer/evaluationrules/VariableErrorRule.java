@@ -14,10 +14,10 @@ public class VariableErrorRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.hasTerm()) {
             return List.of();
         }
@@ -30,7 +30,10 @@ public class VariableErrorRule implements SymbolicEvaluationRule {
             return List.of();
         }
         return List.of(
-            new SymbolicEvaluationResult(new AbstractState(List.of(), state.knowledge()), new PrologSubstitution())
+            new SymbolicEvaluationResult(
+                new AbstractState(List.of(), state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            )
         );
     }
 

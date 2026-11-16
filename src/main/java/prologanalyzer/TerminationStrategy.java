@@ -36,20 +36,12 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
         return Optional.empty();
     }
 
-    private static boolean isSingleConjunct(final AbstractState state) {
-        return
-            state.goal().size() == 1
-            && state.goal().getFirst().hasTerm()
-            && !state.goal().getFirst().hasClause()
-            && !Terms.isConjunction(state.goal().getFirst().getTerm());
-    }
-
     private static boolean isSplittable(final AbstractState state) {
         return
-            state.goal().size() == 1
-            && state.goal().getFirst().hasTerm()
-            && !state.goal().getFirst().hasClause()
-            && Terms.isConjunction(state.goal().getFirst().getTerm());
+            state.goal.size() == 1
+            && state.goal.getFirst().hasTerm()
+            && !state.goal.getFirst().hasClause()
+            && Terms.isConjunction(state.goal.getFirst().getTerm());
     }
 
     private final int maxNestingForGeneralization;
@@ -65,7 +57,7 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
     }
 
     @Override
-    public EvaluationResult evaluate(final PrologProgram program) {
+    public Graph<AbstractState, SymbolicEvaluationEdgeLabel> evaluate(final PrologProgram program) {
         final GlobalState global =
             new GlobalState(program, new FreshNameGenerator(Terms.getAllVariableNames(program)), new ScopeGenerator());
         final AbstractState rootState = QueryParser.parseQuery(global);
@@ -73,12 +65,13 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
             new Graph<AbstractState, SymbolicEvaluationEdgeLabel>();
         final Vertex<AbstractState> root = new Vertex<AbstractState>(rootState);
         graph.addVertex(root);
+        graph.setStartVertex(root);
         try {
             this.evaluate(root, graph, global);
         } catch (final IllegalStateException e) {
             e.printStackTrace();
         }
-        return new EvaluationResult(graph, root.id(), "MAYBE");
+        return graph;
     }
 
     private void evaluate(
@@ -127,8 +120,8 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
             return;
         }
         if (
-            currentState.goal().size() > 1
-            && ParallelRule.computeActiveCuts(List.of(currentState.goal().getFirst())).isEmpty()
+            currentState.goal.size() > 1
+            && ParallelRule.computeActiveCuts(List.of(currentState.goal.getFirst())).isEmpty()
         ) {
             final ParallelRule rule = new ParallelRule(1);
             expansion = rule.apply(currentState, global);
@@ -137,13 +130,13 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
                 return;
             }
         }
-        if (TerminationStrategy.isSingleConjunct(currentState)) {
+        if (currentState.isSingleConjunct()) {
             for (final Vertex<AbstractState> vertex : graph.getVertices()) {
                 if (vertex == currentVertex) {
                     continue;
                 }
                 final AbstractState otherState = vertex.label().get();
-                if (TerminationStrategy.isSingleConjunct(otherState)) {
+                if (otherState.isSingleConjunct()) {
                     final InstanceRule rule = new InstanceRule(otherState, true);
                     expansion = rule.apply(currentState, global);
                     if (!expansion.isEmpty()) {
@@ -161,7 +154,7 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
                     continue;
                 }
                 final AbstractState otherState = vertex.label().get();
-                if (TerminationStrategy.isSingleConjunct(otherState)) {
+                if (otherState.isSingleConjunct()) {
                     final InstanceRule rule = new InstanceRule(otherState, false);
                     expansion = rule.apply(currentState, global);
                     if (!expansion.isEmpty()) {
@@ -179,8 +172,8 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
             this.generalize(currentVertex, currentState, graph, global);
             return;
         }
-        if (currentState.goal().size() > 1) {
-            for (int i = 1; i < currentState.goal().size() - 1; i++) {
+        if (currentState.goal.size() > 1) {
+            for (int i = 1; i < currentState.goal.size() - 1; i++) {
                 final ParallelRule rule = new ParallelRule(i);
                 expansion = rule.apply(currentState, global);
                 if (!expansion.isEmpty()) {
@@ -234,15 +227,15 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
         final GlobalState global
     ) {
-        final PrologTerm term = currentState.goal().getFirst().getTerm();
+        final PrologTerm term = currentState.goal.getFirst().getTerm();
         final List<PrologTerm> generalizedArguments = new ArrayList<PrologTerm>();
-        KnowledgeBase generalizedKnowledge = currentState.knowledge();
+        KnowledgeBase generalizedKnowledge = currentState.knowledge;
         for (final PrologTerm argument : term.arguments) {
             if (Terms.maxNesting(argument) > 0) {
                 final PrologAbstractVariable variable =
                     new PrologAbstractVariable(global.fridge().getFreshName(Terms.DEFAULT_ABSTRACT_VARIABLE_NAME));
                 generalizedArguments.add(variable);
-                if (currentState.knowledge().isGround(argument)) {
+                if (currentState.knowledge.isGround(argument)) {
                     generalizedKnowledge = generalizedKnowledge.addGround(variable);
                 }
             } else {
@@ -272,8 +265,8 @@ public class TerminationStrategy implements SymbolicEvaluationStrategy {
 
     private boolean nestingIsTooHigh(final AbstractState state) {
         return
-            TerminationStrategy.isSingleConjunct(state)
-            && Terms.maxNesting(state.goal().getFirst().getTerm()) > this.maxNestingForGeneralization;
+            state.isSingleConjunct()
+            && Terms.maxNesting(state.goal.getFirst().getTerm()) > this.maxNestingForGeneralization;
     }
 
 }

@@ -12,17 +12,20 @@ public class FailureRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.isScopeMarker()) {
             return List.of();
         }
-        final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal());
+        final List<GoalElement> newGoal = new ArrayList<GoalElement>(state.goal);
         newGoal.remove(0);
         return List.of(
-            new SymbolicEvaluationResult(new AbstractState(newGoal, state.knowledge()), new PrologSubstitution())
+            new SymbolicEvaluationResult(
+                new AbstractState(newGoal, state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            )
         );
     }
 

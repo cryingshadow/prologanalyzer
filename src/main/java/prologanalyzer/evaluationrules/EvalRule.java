@@ -20,10 +20,10 @@ public class EvalRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
         }
@@ -35,13 +35,13 @@ public class EvalRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologSubstitution mgu = optionalMGU.get();
-        if (!mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
+        if (!mgu.hasPotentialUnificationConflict() || !state.knowledge.isCompatibleWithNonUnification(mgu)) {
             return List.of();
         }
-        final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
+        final PrologSubstitution mguOnGround = state.knowledge.restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
             this.termination ?
-                state.knowledge().addRenamings(
+                state.knowledge.addRenamings(
                     mgu,
                     firstConjunct,
                     tailOfConjunction,
@@ -66,24 +66,27 @@ public class EvalRule implements SymbolicEvaluationRule {
                 )
             );
         }
-        newGoalEval.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
+        newGoalEval.addAll(state.goal.stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
         result.add(
             new SymbolicEvaluationResult(
-                new AbstractState(newGoalEval, state.knowledge().apply(mgu, firstGoal.getClause())),
+                new AbstractState(
+                    newGoalEval,
+                    state.knowledge.apply(mgu, firstGoal.getClause())
+                ).restrictKnowledgeToExistingVariables(),
                 mguWithAdditionalRenamings
             )
         );
-        final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal());
+        final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal);
         newGoalBacktrack.remove(0);
         result.add(
             new SymbolicEvaluationResult(
                 new AbstractState(
                     newGoalBacktrack,
                     state
-                    .knowledge()
+                    .knowledge
                     .addNonUnification(firstConjunct, firstGoal.getClause().head())
                     .addFree(Terms.createSetOfAllNonAbstractVariables(firstGoal.getClause().head()))
-                ),
+                ).restrictKnowledgeToExistingVariables(),
                 new PrologSubstitution()
             )
         );

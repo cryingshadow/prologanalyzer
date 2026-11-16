@@ -33,8 +33,8 @@ public class ParallelRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        final List<GoalElement> firstGoals = state.goal().stream().limit(this.splitIndex).toList();
-        final List<GoalElement> lastGoals = state.goal().stream().skip(this.splitIndex).toList();
+        final List<GoalElement> firstGoals = state.goal.stream().limit(this.splitIndex).toList();
+        final List<GoalElement> lastGoals = state.goal.stream().skip(this.splitIndex).toList();
         if (firstGoals.isEmpty() || lastGoals.isEmpty()) {
             return List.of();
         }
@@ -49,8 +49,14 @@ public class ParallelRule implements SymbolicEvaluationRule {
             return List.of();
         }
         return List.of(
-            new SymbolicEvaluationResult(new AbstractState(firstGoals, state.knowledge()), new PrologSubstitution()),
-            new SymbolicEvaluationResult(new AbstractState(lastGoals, state.knowledge()), new PrologSubstitution())
+            new SymbolicEvaluationResult(
+                new AbstractState(firstGoals, state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            ),
+            new SymbolicEvaluationResult(
+                new AbstractState(lastGoals, state.knowledge).restrictKnowledgeToExistingVariables(),
+                new PrologSubstitution()
+            )
         );
     }
 

@@ -11,7 +11,14 @@ public abstract class MGUComputer {
 
     private static final boolean THROW_EXCEPTION_ON_OCCURS_CHECK = true;
 
-    private static final boolean USE_OCCURS_CHECK_BY_DEFAULT = false;
+    private static final boolean USE_OCCURS_CHECK_BY_DEFAULT = true;
+
+    public static Optional<PrologSubstitution> computeMGU(
+        final PrologTerm term1,
+        final PrologTerm term2
+    ) {
+        return MGUComputer.computeMGU(term1, term2, MGUComputer.USE_OCCURS_CHECK_BY_DEFAULT, MGUComputer.PREFER_NON_ABSTRACT_REPLACEMENT);
+    }
 
     public static Optional<PrologSubstitution> computeMGUWithOnlyFreshVariables(
         final PrologTerm term1,
@@ -74,6 +81,97 @@ public abstract class MGUComputer {
             }
         }
         return new TermPair(term1, term2);
+    }
+
+    private static Optional<PrologSubstitution> computeMGU(
+        final PrologTerm initalTerm1,
+        final PrologTerm initialTerm2,
+        final boolean occursCheck,
+        final boolean nonAbstractReplacementPreferred
+    ) {
+        PrologTerm term1 = initalTerm1;
+        PrologTerm term2 = initialTerm2;
+        final PrologSubstitution res = new PrologSubstitution();
+        if (Terms.isVariable(term1)) {
+            if (Terms.isVariable(term2)) {
+                if (term1.equals(term2)) {
+                    return Optional.of(res);
+                } else {
+                    if (nonAbstractReplacementPreferred) {
+                        if (Terms.isAbstractVariable(term1) || Terms.isNonAbstractVariable(term2)) {
+                            res.put((PrologVariable)term2, term1);
+                        } else {
+                            res.put((PrologVariable)term1, term2);
+                        }
+                        return Optional.of(res);
+                    } else {
+                        res.put((PrologVariable)term1, term2);
+                        return Optional.of(res);
+                    }
+                }
+            } else {
+                if (occursCheck) {
+                    if (Terms.occurs(term1.name, Terms.getArity(term1), term2)) {
+                        return Optional.empty();
+                    } else {
+                        res.put((PrologVariable)term1, res.apply(term2));
+                        return Optional.of(res);
+                    }
+                } else {
+                    if (Terms.occurs(term1.name, Terms.getArity(term1), term2)) {
+                        if (MGUComputer.THROW_EXCEPTION_ON_OCCURS_CHECK) {
+                            throw new IllegalArgumentException("Occurs check is relevant here!");
+                        }
+                        final PrologTerm cycle = res.apply(new PrologCyclicTerm(term2, (PrologVariable)term1));
+                        res.put((PrologVariable)term1, cycle);
+                        return Optional.of(res);
+                    } else {
+                        res.put((PrologVariable)term1, res.apply(term2));
+                        return Optional.of(res);
+                    }
+                }
+            }
+        } else if (Terms.isVariable(term2)) {
+            if (occursCheck) {
+                if (Terms.occurs(term2.name, Terms.getArity(term2), term1)) {
+                    return Optional.empty();
+                } else {
+                    res.put((PrologVariable)term2, res.apply(term1));
+                    return Optional.of(res);
+                }
+            } else {
+                if (Terms.occurs(term2.name, Terms.getArity(term2), term1)) {
+                    if (MGUComputer.THROW_EXCEPTION_ON_OCCURS_CHECK) {
+                        throw new IllegalArgumentException("Occurs check is relevant here!");
+                    }
+                    final PrologTerm cycle = res.apply(new PrologCyclicTerm(term1, (PrologVariable)term2));
+                    res.put((PrologVariable)term2, cycle);
+                    return Optional.of(res);
+                } else {
+                    res.put((PrologVariable)term2, res.apply(term1));
+                    return Optional.of(res);
+                }
+            }
+        } else if (term1.name.equals(term2.name) && Terms.getArity(term1) == Terms.getArity(term2)) {
+            for (int i = 0; i < Terms.getArity(term1); i++) {
+                final Optional<PrologSubstitution> optionalMGU =
+                    MGUComputer.computeMGU(
+                        term1.arguments.get(i),
+                        term2.arguments.get(i),
+                        occursCheck,
+                        nonAbstractReplacementPreferred
+                    );
+                if (optionalMGU.isEmpty()) {
+                    return optionalMGU;
+                } else {
+                    final TermPair pair = MGUComputer.combineMGUforArguments(term1, term2, i, optionalMGU.get(), res);
+                    term1 = pair.term1();
+                    term2 = pair.term2();
+                }
+            }
+            return Optional.of(res);
+        }
+        return Optional.empty();
     }
 
     private static Optional<PrologSubstitution> computeMGUwithOnlyFreshVariables(

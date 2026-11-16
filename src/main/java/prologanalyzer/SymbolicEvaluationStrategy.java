@@ -6,6 +6,6 @@ import prologparser.*;
 @FunctionalInterface
 public interface SymbolicEvaluationStrategy {
 
-    EvaluationResult evaluate(PrologProgram program);
+    Graph<AbstractState, SymbolicEvaluationEdgeLabel> evaluate(PrologProgram program);
 
 }

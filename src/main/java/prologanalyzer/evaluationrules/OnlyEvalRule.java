@@ -20,10 +20,10 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
-        if (state.goal().isEmpty()) {
+        if (state.goal.isEmpty()) {
             return List.of();
         }
-        final GoalElement firstGoal = state.goal().getFirst();
+        final GoalElement firstGoal = state.goal.getFirst();
         if (!firstGoal.hasClause()) {
             return List.of();
         }
@@ -35,13 +35,13 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologSubstitution mgu = optionalMGU.get();
-        if (mgu.hasPotentialUnificationConflict() || !state.knowledge().isCompatibleWithNonUnification(mgu)) {
+        if (mgu.hasPotentialUnificationConflict() || !state.knowledge.isCompatibleWithNonUnification(mgu)) {
             return List.of();
         }
-        final PrologSubstitution mguOnGround = state.knowledge().restrictToGround(mgu);
+        final PrologSubstitution mguOnGround = state.knowledge.restrictToGround(mgu);
         final PrologSubstitution mguWithAdditionalRenamings =
             this.termination ?
-                state.knowledge().addRenamings(
+                state.knowledge.addRenamings(
                     mgu,
                     firstConjunct,
                     tailOfConjunction,
@@ -65,10 +65,13 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
                 )
             );
         }
-        newGoal.addAll(state.goal().stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
+        newGoal.addAll(state.goal.stream().skip(1).map(goal -> goal.apply(mguOnGround)).toList());
         return List.of(
             new SymbolicEvaluationResult(
-                new AbstractState(newGoal, state.knowledge().apply(mgu, firstGoal.getClause())),
+                new AbstractState(
+                    newGoal,
+                    state.knowledge.apply(mgu, firstGoal.getClause())
+                ).restrictKnowledgeToExistingVariables(),
                 mguWithAdditionalRenamings
             )
         );

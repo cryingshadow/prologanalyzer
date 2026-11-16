@@ -14,11 +14,11 @@ public abstract class Terms {
     public static final String DEFAULT_NON_ABSTRACT_VARIABLE_NAME = "X";
 
     public static PrologSubstitution calculateMatcher(final PrologTerm from, final PrologTerm to) {
-        return Terms.calculateMatcher(from, to, false);
+        return Terms.calculateMatcher(from, to, true);
     }
 
     public static PrologSubstitution calculateMatcherWithAbstractVariables(final PrologTerm from, final PrologTerm to) {
-        return Terms.calculateMatcher(from, to, true);
+        return Terms.calculateMatcher(from, to, false);
     }
 
     public static Set<Integer> computeActiveCuts(final PrologTerm term) {
@@ -33,6 +33,29 @@ public abstract class Terms {
             .stream()
             .flatMap(argument -> Terms.computeActiveCuts(argument).stream())
             .collect(Collectors.toSet());
+    }
+
+    public static Set<PrologVariable> computeSetOfFutureGroundVariables(
+        final PrologTerm term,
+        final KnowledgeBase knowledge,
+        final PrologProgram program
+    ) {
+        if (Terms.isConjunction(term)) {
+            throw new IllegalArgumentException("Not yet implemented!");
+        }
+        final FunctionSymbol symbol = Terms.getFunctionSymbol(term);
+        final Set<Integer> groundPositions = new LinkedHashSet<Integer>();
+        for (int i = 0; i < symbol.arity(); i++) {
+            if (knowledge.isGround(term.arguments.get(i))) {
+                groundPositions.add(i);
+            }
+        }
+        final Set<Integer> futureGroundPositions = GroundnessAnalysis.getGroundPositions(symbol, groundPositions, program);
+        final Set<PrologVariable> result = new TreeSet<PrologVariable>();
+        for (final Integer position : futureGroundPositions) {
+            result.addAll(Terms.createSetOfAllVariables(term.arguments.get(position)));
+        }
+        return knowledge.restrictToNonGround(result);
     }
 
     public static boolean containsCut(final PrologTerm term) {
@@ -54,6 +77,21 @@ public abstract class Terms {
 
     public static Set<PrologAbstractVariable> createSetOfAllAbstractVariables(final PrologTerm term) {
         return Terms.createSetOfAllOccurrences(t -> Terms.isAbstractVariable(t), term);
+    }
+
+    public static Set<FunctionSymbol> createSetOfAllFunctionSymbols(final PrologTerm term) {
+        if (term == null || Terms.isVariable(term)) {
+            return Set.of();
+        }
+        if (Terms.isConstant(term)) {
+            return Set.of(Terms.getFunctionSymbol(term));
+        }
+        final Set<FunctionSymbol> result = new LinkedHashSet<FunctionSymbol>();
+        result.add(Terms.getFunctionSymbol(term));
+        for (final PrologTerm argument : term.arguments) {
+            result.addAll(Terms.createSetOfAllFunctionSymbols(argument));
+        }
+        return result;
     }
 
     public static Set<PrologVariable> createSetOfAllNonAbstractVariables(final PrologTerm term) {
@@ -353,18 +391,18 @@ public abstract class Terms {
     private static PrologSubstitution calculateMatcher(
         final PrologTerm from,
         final PrologTerm to,
-        final boolean keepRangeAbstract
+        final boolean keepDomainNonAbstract
     ) {
         final PrologSubstitution matcher = new PrologSubstitution();
         if (from.equals(to)) {
             return matcher;
-        } else if ((keepRangeAbstract && Terms.isVariable(from)) || Terms.isNonAbstractVariable(from)) {
+        } else if ((!keepDomainNonAbstract && Terms.isVariable(from)) || Terms.isNonAbstractVariable(from)) {
             matcher.put((PrologVariable)from, to);
             return matcher;
         } else if (Terms.haveSameFunctionSymbol(from, to)) {
             for (int i = 0; i < Terms.getArity(from); i++) {
                 final PrologSubstitution argumentMatcher =
-                    Terms.calculateMatcher(from.arguments.get(i), to.arguments.get(i), keepRangeAbstract);
+                    Terms.calculateMatcher(from.arguments.get(i), to.arguments.get(i), keepDomainNonAbstract);
                 if (argumentMatcher == null) {
                     return null;
                 } else {
