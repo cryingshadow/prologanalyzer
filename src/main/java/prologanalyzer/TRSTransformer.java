@@ -24,10 +24,10 @@ public class TRSTransformer {
         final BufferedWriter writer
     ) throws IOException {
         final VertexSets sets = TRSTransformer.computeVertexSets(graph);
-        final List<SymbolicEvaluationPath> paths = TRSTransformer.calculateAllEvaluationPaths(graph, sets);
         final List<TermPair> rules = new LinkedList<TermPair>();
         switch (mode) {
         case NON_TERMINATION:
+            final List<SymbolicEvaluationPath> paths = TRSTransformer.calculateAllEvaluationPaths(graph, sets, false);
             for (final SymbolicEvaluationPath path : paths) {
                 TRSTransformer.transformPathToRulesForNonTermination(path, rules, graph, sets, program);
             }
@@ -60,52 +60,65 @@ public class TRSTransformer {
 
     private static List<SymbolicEvaluationPath> calculateAllEvaluationPaths(
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
-        final VertexSets sets
+        final VertexSets sets,
+        final boolean termination
     ) {
         final List<SymbolicEvaluationPath> result = new LinkedList<SymbolicEvaluationPath>();
-        for (final Vertex<AbstractState> root : graph.getStartVertices()) {
-            result.addAll(
-                TRSTransformer.calculateAllEvaluationPathsFromVertex(
-                    graph,
-                    root,
-                    root,
-                    new PrologSubstitution(),
-                    sets
-                )
-            );
+        if (termination) {
+            for (final Vertex<AbstractState> root : graph.getStartVertices()) {
+                result.addAll(
+                    TRSTransformer.calculateAllEvaluationPathsFromVertex(
+                        graph,
+                        root,
+                        root,
+                        new PrologSubstitution(),
+                        0,
+                        sets,
+                        termination
+                    )
+                );
+            }
+            for (final Vertex<AbstractState> vertex : sets.splits()) {
+                final Vertex<AbstractState> firstSplit = TRSTransformer.getFirstSplitChild(graph, vertex);
+                final Vertex<AbstractState> lastSplit = TRSTransformer.getLastSplitChild(graph, vertex);
+                result.addAll(
+                    TRSTransformer.calculateAllEvaluationPathsFromVertex(
+                        graph,
+                        firstSplit,
+                        firstSplit,
+                        new PrologSubstitution(),
+                        0,
+                        sets,
+                        termination
+                    )
+                );
+                result.addAll(
+                    TRSTransformer.calculateAllEvaluationPathsFromVertex(
+                        graph,
+                        lastSplit,
+                        lastSplit,
+                        new PrologSubstitution(),
+                        0,
+                        sets,
+                        termination
+                    )
+                );
+            }
         }
         for (final Vertex<AbstractState> vertex : sets.instanceChildren()) {
-            result.addAll(
-                TRSTransformer.calculateAllEvaluationPathsFromVertex(
-                    graph,
-                    vertex,
-                    vertex,
-                    new PrologSubstitution(),
-                    sets
-                )
-            );
-        }
-        for (final Vertex<AbstractState> vertex : sets.splits()) {
-            final Vertex<AbstractState> firstSplit = TRSTransformer.getFirstSplitChild(graph, vertex);
-            final Vertex<AbstractState> lastSplit = TRSTransformer.getLastSplitChild(graph, vertex);
-            result.addAll(
-                TRSTransformer.calculateAllEvaluationPathsFromVertex(
-                    graph,
-                    firstSplit,
-                    firstSplit,
-                    new PrologSubstitution(),
-                    sets
-                )
-            );
-            result.addAll(
-                TRSTransformer.calculateAllEvaluationPathsFromVertex(
-                    graph,
-                    lastSplit,
-                    lastSplit,
-                    new PrologSubstitution(),
-                    sets
-                )
-            );
+            if (termination || !sets.instanceParents().contains(vertex)) {
+                result.addAll(
+                    TRSTransformer.calculateAllEvaluationPathsFromVertex(
+                        graph,
+                        vertex,
+                        vertex,
+                        new PrologSubstitution(),
+                        0,
+                        sets,
+                        termination
+                    )
+                );
+            }
         }
         return result;
     }
@@ -115,24 +128,27 @@ public class TRSTransformer {
         final Vertex<AbstractState> start,
         final Vertex<AbstractState> vertex,
         final PrologSubstitution substitution,
-        final VertexSets sets
+        final int length,
+        final VertexSets sets,
+        final boolean termination
     ) {
         final List<SymbolicEvaluationPath> result = new LinkedList<SymbolicEvaluationPath>();
-        if (start != vertex && sets.successes().contains(vertex)) {
+        if (termination && length > 0 && sets.successes().contains(vertex)) {
             result.add(new SymbolicEvaluationPath(start, substitution, vertex));
         }
         if (
-            start != vertex
-            && (sets.instanceChildren().contains(vertex) || sets.splits().contains(vertex))
+            length > 0
+            && (
+                (
+                    sets.instanceChildren().contains(vertex)
+                    && (termination || !sets.instanceParents().contains(vertex))
+                ) || (termination && sets.splits().contains(vertex))
+            )
         ) {
             result.add(new SymbolicEvaluationPath(start, substitution, vertex));
-        } else if (start != vertex && sets.instanceParents().contains(vertex)) {
+        } else if (termination && length > 0 && sets.instanceParents().contains(vertex)) {
             result.add(new SymbolicEvaluationPath(start, substitution, vertex));
-        } else if (
-            !sets.instanceParents().contains(vertex)
-            && !sets.splits().contains(vertex)
-            && !(start != vertex && sets.instanceChildren().contains(vertex))
-        ) {
+        } else if (length == 0 || termination || !sets.instanceChildren().contains(vertex)) {
             for (final Edge<SymbolicEvaluationEdgeLabel, AbstractState> edge : graph.getAdjacencySet(vertex)) {
                 final PrologSubstitution nextSubstitution = substitution.append(edge.label().get().substitution());
                 result.addAll(
@@ -141,7 +157,9 @@ public class TRSTransformer {
                         start,
                         edge.to(),
                         nextSubstitution,
-                        sets
+                        length + 1,
+                        sets,
+                        termination
                     )
                 );
             }
@@ -304,45 +322,15 @@ public class TRSTransformer {
         final VertexSets sets,
         final PrologProgram program
     ) {
-        if (sets.successes().contains(path.end())) {
-            rules.add(
-                new TermPair(
-                    path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false)),
-                    path.substitution().apply(
-                        TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false)
-                    )
-                )
-            );
-        } else {
-            final PrologSubstitution instanceMatcher = TRSTransformer.getInstanceMatcher(path.end(), graph, sets);
-            final PrologSubstitution substitution = path.substitution().append(instanceMatcher);
-            final PrologTerm inTerm =
-                substitution.apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false));
-            final List<PrologVariable> variables =
-                new LinkedList<PrologVariable>(Terms.createSetOfAllVariables(inTerm));
-            rules.add(
-                new TermPair(
-                    inTerm,
-                    TRSTransformer.connectionTerm(
-                        path.start().id(),
-                        path.end().id(),
-                        TRSTransformer.encodeInTerm(path.end(), graph, sets, false),
-                        variables
-                    )
-                )
-            );
-            rules.add(
-                new TermPair(
-                    TRSTransformer.connectionTerm(
-                        path.start().id(),
-                        path.end().id(),
-                        TRSTransformer.encodeOutTerm(path.end(), graph, sets, program, false),
-                        variables
-                    ),
-                    substitution.apply(TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false))
-                )
-            );
-        }
+        final PrologTerm inTerm =
+            path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false));
+//        final List<PrologVariable> variables = new LinkedList<PrologVariable>(Terms.createSetOfAllVariables(inTerm));
+        rules.add(
+            new TermPair(
+                inTerm,
+                TRSTransformer.encodeInTerm(path.end(), graph, sets, false)
+            )
+        );
     }
 
 }
