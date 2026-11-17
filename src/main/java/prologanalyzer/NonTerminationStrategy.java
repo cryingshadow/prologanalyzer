@@ -59,14 +59,14 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
             && !Terms.isConjunction(state.goal.getFirst().getTerm());
     }
 
-    private final int maxNestingForGeneralization;
+    private final int maxNesting;
 
     private final long start;
 
     private final long timeout;
 
-    public NonTerminationStrategy(final int maxNestingForGeneralization, final long timeout) {
-        this.maxNestingForGeneralization = maxNestingForGeneralization;
+    public NonTerminationStrategy(final int maxNesting, final long timeout) {
+        this.maxNesting = maxNesting;
         this.timeout = timeout;
         this.start = System.currentTimeMillis();
     }
@@ -99,7 +99,7 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
             new Vertex<AbstractState>(
                 new AbstractState(
                     currentState.goal,
-                    currentState.knowledge.concretize(this.maxNestingForGeneralization, global.fridge())
+                    currentState.knowledge.concretize(this.maxNesting, global.fridge())
                 ).restrictKnowledgeToExistingVariables()
             );
         final InstanceRule rule = new InstanceRule(currentState, false);
@@ -182,8 +182,12 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
                 }
             }
         }
-        if (this.nestingIsTooHigh(currentState)) {
+        if (this.nestingIsTooHighInKnowledge(currentState)) {
             this.concretize(currentVertex, currentState, graph, global);
+            return;
+        }
+        if (this.nestingIsTooHighInGoal(currentState)) {
+            // give up
             return;
         }
         if (NonTerminationStrategy.isDroppable(currentState)) {
@@ -266,8 +270,19 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
         }
     }
 
-    private boolean nestingIsTooHigh(final AbstractState state) {
-        return state.knowledge.maxNesting() > this.maxNestingForGeneralization;
+    private boolean nestingIsTooHighInGoal(final AbstractState currentState) {
+        return
+            currentState
+            .goal
+            .stream()
+            .filter(element -> !element.isScopeMarker())
+            .mapToInt(element -> Terms.maxNesting(element.getTerm()))
+            .max()
+            .orElse(0) > this.maxNesting;
+    }
+
+    private boolean nestingIsTooHighInKnowledge(final AbstractState state) {
+        return state.knowledge.maxNesting() > this.maxNesting;
     }
 
 }

@@ -29,45 +29,7 @@ public class TRSTransformer {
         switch (mode) {
         case NON_TERMINATION:
             for (final SymbolicEvaluationPath path : paths) {
-                if (sets.successes().contains(path.end())) {
-                    rules.add(
-                        new TermPair(
-                            path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false)),
-                            path.substitution().apply(
-                                TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false)
-                            )
-                        )
-                    );
-                } else {
-                    final PrologTerm inTerm =
-                        path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false));
-                    final List<PrologVariable> variables =
-                        new LinkedList<PrologVariable>(Terms.createSetOfAllVariables(inTerm));
-                    rules.add(
-                        new TermPair(
-                            inTerm,
-                            TRSTransformer.connectionTerm(
-                                path.start().id(),
-                                path.end().id(),
-                                TRSTransformer.encodeInTerm(path.end(), graph, sets, false),
-                                variables
-                            )
-                        )
-                    );
-                    rules.add(
-                        new TermPair(
-                            TRSTransformer.connectionTerm(
-                                path.start().id(),
-                                path.end().id(),
-                                TRSTransformer.encodeOutTerm(path.end(), graph, sets, program, false),
-                                variables
-                            ),
-                            path.substitution().apply(
-                                TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false)
-                            )
-                        )
-                    );
-                }
+                TRSTransformer.transformPathToRulesForNonTermination(path, rules, graph, sets, program);
             }
             break;
         case TERMINATION:
@@ -226,7 +188,7 @@ public class TRSTransformer {
             arguments.add(variable);
         }
         return new PrologTerm(
-            String.format("%s%s|%s", TRSTransformer.CONNECTION_SYMBOL_PREFIX, id1.toString(), id2.toString()),
+            String.format("%s%s/%s", TRSTransformer.CONNECTION_SYMBOL_PREFIX, id1.toString(), id2.toString()),
             arguments
         );
     }
@@ -291,6 +253,17 @@ public class TRSTransformer {
         return edges.getLast().to();
     }
 
+    private static PrologSubstitution getInstanceMatcher(
+        final Vertex<AbstractState> end,
+        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
+        final VertexSets sets
+    ) {
+        if (sets.instanceParents().contains(end)) {
+            return graph.getAdjacencySet(end).iterator().next().label().get().substitution();
+        }
+        return new PrologSubstitution();
+    }
+
     private static Vertex<AbstractState> getLastSplitChild(
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
         final Vertex<AbstractState> vertex
@@ -318,7 +291,58 @@ public class TRSTransformer {
     }
 
     private static String toARI(final String name) {
-        return name.matches("(\\[|\\d|\\]).*") ? String.format("|%s|", name) : name;
+        if (name.contains("|") || name.matches("(\\[|\\d|\\]).*")) {
+            return String.format("|%s|", name.replaceAll("\\|", "/"));
+        }
+        return name;
+    }
+
+    private static void transformPathToRulesForNonTermination(
+        final SymbolicEvaluationPath path,
+        final List<TermPair> rules,
+        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
+        final VertexSets sets,
+        final PrologProgram program
+    ) {
+        if (sets.successes().contains(path.end())) {
+            rules.add(
+                new TermPair(
+                    path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false)),
+                    path.substitution().apply(
+                        TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false)
+                    )
+                )
+            );
+        } else {
+            final PrologSubstitution instanceMatcher = TRSTransformer.getInstanceMatcher(path.end(), graph, sets);
+            final PrologSubstitution substitution = path.substitution().append(instanceMatcher);
+            final PrologTerm inTerm =
+                substitution.apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false));
+            final List<PrologVariable> variables =
+                new LinkedList<PrologVariable>(Terms.createSetOfAllVariables(inTerm));
+            rules.add(
+                new TermPair(
+                    inTerm,
+                    TRSTransformer.connectionTerm(
+                        path.start().id(),
+                        path.end().id(),
+                        TRSTransformer.encodeInTerm(path.end(), graph, sets, false),
+                        variables
+                    )
+                )
+            );
+            rules.add(
+                new TermPair(
+                    TRSTransformer.connectionTerm(
+                        path.start().id(),
+                        path.end().id(),
+                        TRSTransformer.encodeOutTerm(path.end(), graph, sets, program, false),
+                        variables
+                    ),
+                    substitution.apply(TRSTransformer.encodeOutTerm(path.start(), graph, sets, program, false))
+                )
+            );
+        }
     }
 
 }
