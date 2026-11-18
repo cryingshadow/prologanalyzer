@@ -325,17 +325,25 @@ public class KnowledgeBase {
     public KnowledgeBase cleanAndRestrictToVariables(final Set<PrologVariable> variables) {
         final Set<TermPair> nonUnifiable = new LinkedHashSet<TermPair>();
         outer: for (final TermPair pair : this.nonUnifiable) {
-            if (
-                MGUComputer.computeMGUWithOnlyFreshVariables(
-                    pair.term1(),
-                    pair.term2(),
-                    new FreshNameGenerator()
-                ).isEmpty()
-            ) {
+            final Optional<PrologSubstitution> optionalMGU = MGUComputer.computeMGU(pair.term1(), pair.term2());
+            if (optionalMGU.isEmpty()) {
+                continue;
+            }
+            final Set<PrologVariable> variablesInPair =
+                new LinkedHashSet<PrologVariable>(Terms.createSetOfAllVariables(pair.term1()));
+            variablesInPair.addAll(Terms.createSetOfAllVariables(pair.term2()));
+            variablesInPair.retainAll(variables);
+            if (variablesInPair.isEmpty()) {
+                continue;
+            }
+            final PrologSubstitution mgu = optionalMGU.get();
+            if (mgu.keySet().stream().allMatch(variable -> !variables.contains(variable))) {
                 continue;
             }
             for (final TermPair in : nonUnifiable) {
-                if (this.isRenaming(pair, in)) {
+                final Optional<PrologSubstitution> secondMGU =
+                    MGUComputer.computeMGU(mgu.apply(in.term1()), mgu.apply(in.term2()));
+                if (secondMGU.isPresent() && secondMGU.get().keySet().stream().allMatch(Terms::isNonAbstractVariable)) {
                     continue outer;
                 }
             }
@@ -606,46 +614,6 @@ public class KnowledgeBase {
             .stream()
             .flatMap(variable -> Terms.createSetOfAllAbstractVariables(substitution.apply(variable)).stream())
             .collect(Collectors.toCollection(() -> new TreeSet<PrologAbstractVariable>(PrologTermComparator.INSTANCE)));
-    }
-
-    private PrologSubstitution computeMatcher(final TermPair pair1, final TermPair pair2, final boolean reverse) {
-        final PrologTerm term1 = new PrologTerm(",", List.of(pair1.term1(), pair1.term2()));
-        final PrologTerm term2 =
-            new PrologTerm(
-                ",",
-                reverse ? List.of(pair2.term2(), pair1.term2()) : List.of(pair2.term1(), pair2.term2())
-            );
-        return Terms.calculateMatcher(term1, term2);
-    }
-
-    private boolean isRenaming(final PrologSubstitution matcher) {
-        if (matcher == null) {
-            return false;
-        }
-        for (final Map.Entry<PrologVariable, PrologTerm> entry : matcher.entrySet()) {
-            if (!Terms.isVariable(entry.getValue())) {
-                return false;
-            }
-            if (Terms.isAbstractVariable(entry.getValue())) {
-                if (
-                    !Terms.isAbstractVariable(entry.getKey())
-                    || this.isGround(entry.getValue()) != this.isGround(entry.getKey())
-                ) {
-                    return false;
-                }
-            } else {
-                if (this.isFree(entry.getKey()) != this.isFree((PrologVariable)entry.getValue())) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private boolean isRenaming(final TermPair pair1, final TermPair pair2) {
-        final PrologSubstitution matcher1 = this.computeMatcher(pair1, pair2, false);
-        final PrologSubstitution matcher2 = this.computeMatcher(pair1, pair2, true);
-        return this.isRenaming(matcher1) || this.isRenaming(matcher2);
     }
 
 }

@@ -17,6 +17,8 @@ public class TRSTransformer {
 
     private static final String OUT_SYMBOL_PREFIX = "fout";
 
+    private static final String SYMBOL_PREFIX = "f";
+
     public static void writeTRS(
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
         final Mode mode,
@@ -29,7 +31,7 @@ public class TRSTransformer {
         case NON_TERMINATION:
             final List<SymbolicEvaluationPath> paths = TRSTransformer.calculateAllEvaluationPaths(graph, sets, false);
             for (final SymbolicEvaluationPath path : paths) {
-                TRSTransformer.transformPathToRulesForNonTermination(path, rules, graph, sets, program);
+                TRSTransformer.transformPathToRulesForNonTermination(path, rules, graph, sets);
             }
             break;
         case TERMINATION:
@@ -214,19 +216,14 @@ public class TRSTransformer {
     private static PrologTerm encodeInTerm(
         final Vertex<AbstractState> vertex,
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
-        final VertexSets sets,
-        final boolean termination
+        final VertexSets sets
     ) {
         if (sets.instanceParents().contains(vertex)) {
             final Edge<SymbolicEvaluationEdgeLabel, AbstractState> edge =
                 graph.getAdjacencySet(vertex).iterator().next();
-            if (termination) {
-                return edge.label().get().substitution().apply(
-                    TRSTransformer.encodeInTerm(edge.to(), graph, sets, termination)
-                );
-            } else {
-                return TRSTransformer.encodeInTerm(edge.to(), graph, sets, termination);
-            }
+            return edge.label().get().substitution().apply(
+                TRSTransformer.encodeInTerm(edge.to(), graph, sets)
+            );
         }
         final List<PrologTerm> arguments =
             new ArrayList<PrologTerm>(vertex.label().get().createSetOfAllGroundVariablesInGoal());
@@ -237,23 +234,33 @@ public class TRSTransformer {
         final Vertex<AbstractState> vertex,
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
         final VertexSets sets,
-        final PrologProgram program,
-        final boolean termination
+        final PrologProgram program
     ) {
         if (sets.instanceParents().contains(vertex)) {
             final Edge<SymbolicEvaluationEdgeLabel, AbstractState> edge =
                 graph.getAdjacencySet(vertex).iterator().next();
-            if (termination) {
-                return edge.label().get().substitution().apply(
-                    TRSTransformer.encodeOutTerm(edge.to(), graph, sets, program, termination)
-                );
-            } else {
-                return TRSTransformer.encodeOutTerm(edge.to(), graph, sets, program, termination);
-            }
+            return edge.label().get().substitution().apply(
+                TRSTransformer.encodeOutTerm(edge.to(), graph, sets, program)
+            );
         }
         final List<PrologTerm> arguments =
             new ArrayList<PrologTerm>(vertex.label().get().createSetOfAllFutureGroundVariables(program));
         return new PrologTerm(TRSTransformer.OUT_SYMBOL_PREFIX + vertex.id().toString(), arguments);
+    }
+
+    private static PrologTerm encodeTermForNonTermination(
+        final Vertex<AbstractState> vertex,
+        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
+        final VertexSets sets
+    ) {
+        if (sets.instanceParents().contains(vertex)) {
+            final Edge<SymbolicEvaluationEdgeLabel, AbstractState> edge =
+                graph.getAdjacencySet(vertex).iterator().next();
+            return TRSTransformer.encodeTermForNonTermination(edge.to(), graph, sets);
+        }
+        final List<PrologTerm> arguments =
+            new ArrayList<PrologTerm>(vertex.label().get().createSetOfAllGroundVariablesInGoal());
+        return new PrologTerm(TRSTransformer.SYMBOL_PREFIX + vertex.id().toString(), arguments);
     }
 
     private static Vertex<AbstractState> getFirstSplitChild(
@@ -319,16 +326,14 @@ public class TRSTransformer {
         final SymbolicEvaluationPath path,
         final List<TermPair> rules,
         final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph,
-        final VertexSets sets,
-        final PrologProgram program
+        final VertexSets sets
     ) {
         final PrologTerm inTerm =
-            path.substitution().apply(TRSTransformer.encodeInTerm(path.start(), graph, sets, false));
-//        final List<PrologVariable> variables = new LinkedList<PrologVariable>(Terms.createSetOfAllVariables(inTerm));
+            path.substitution().apply(TRSTransformer.encodeTermForNonTermination(path.start(), graph, sets));
         rules.add(
             new TermPair(
                 inTerm,
-                TRSTransformer.encodeInTerm(path.end(), graph, sets, false)
+                TRSTransformer.encodeTermForNonTermination(path.end(), graph, sets)
             )
         );
     }

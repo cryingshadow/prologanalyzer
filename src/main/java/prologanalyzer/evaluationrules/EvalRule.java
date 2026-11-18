@@ -12,6 +12,17 @@ public class EvalRule implements SymbolicEvaluationRule {
 
     public static final EvalRule TERMINATION_EVAL = new EvalRule(true);
 
+    private static PrologTerm toFreshVariables(final PrologTerm term, final FreshNameGenerator fridge) {
+        final PrologSubstitution substitution = new PrologSubstitution();
+        for (final PrologVariable variable : Terms.createSetOfAllNonAbstractVariables(term)) {
+            substitution.put(
+                variable,
+                new PrologVariable(fridge.getFreshName(Terms.DEFAULT_NON_ABSTRACT_VARIABLE_NAME))
+            );
+        }
+        return substitution.apply(term);
+    }
+
     private final boolean termination;
 
     private EvalRule(final boolean termination) {
@@ -78,14 +89,15 @@ public class EvalRule implements SymbolicEvaluationRule {
         );
         final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal);
         newGoalBacktrack.remove(0);
+        final PrologTerm freshClauseHead = EvalRule.toFreshVariables(firstGoal.getClause().head(), global.fridge());
         result.add(
             new SymbolicEvaluationResult(
                 new AbstractState(
                     newGoalBacktrack,
                     state
                     .knowledge
-                    .addNonUnification(firstConjunct, firstGoal.getClause().head())
-                    .addFree(Terms.createSetOfAllNonAbstractVariables(firstGoal.getClause().head()))
+                    .addNonUnification(firstConjunct, freshClauseHead)
+                    .addFree(Terms.createSetOfAllNonAbstractVariables(freshClauseHead))
                 ).restrictKnowledgeToExistingVariables(),
                 new PrologSubstitution()
             )

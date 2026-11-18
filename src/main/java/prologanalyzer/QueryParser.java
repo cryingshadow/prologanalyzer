@@ -9,8 +9,8 @@ public abstract class QueryParser {
 
     public static AbstractState parseQuery(final GlobalState global) {
         for (final String comment : global.program().comments()) {
-            if (comment.startsWith("%query: ")) {
-                return QueryParser.parseQuery(comment.substring(8), global.fridge(), global.scoper());
+            if (comment.startsWith("%query:")) {
+                return QueryParser.parseQuery(comment.substring(7).trim(), global.fridge(), global.scoper());
             }
         }
         return null;
