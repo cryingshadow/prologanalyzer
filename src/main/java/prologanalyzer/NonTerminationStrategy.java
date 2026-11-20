@@ -48,7 +48,8 @@ public class NonTerminationStrategy implements SymbolicEvaluationStrategy {
             state.goal.size() == 1
             && state.goal.getFirst().hasTerm()
             && !state.goal.getFirst().hasClause()
-            && Terms.isConjunction(state.goal.getFirst().getTerm());
+            && Terms.isConjunction(state.goal.getFirst().getTerm())
+            && Terms.computeActiveCuts(state.goal.getFirst().getTerm()).isEmpty();
     }
 
     private static boolean isSingleConjunct(final AbstractState state) {

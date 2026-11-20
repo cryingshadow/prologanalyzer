@@ -18,7 +18,7 @@ public class FocusRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologTerm term = state.goal.getFirst().getTerm();
-        if (!Terms.isConjunction(term) || Terms.getArity(term) < 2) {
+        if (!Terms.isConjunction(term) || Terms.getArity(term) < 2 || !Terms.computeActiveCuts(term).isEmpty()) {
             return List.of();
         }
         final PrologTerm headOfConjunction = Terms.getFirstConjunct(term);
