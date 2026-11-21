@@ -11,13 +11,31 @@ public abstract class MGUComputer {
 
     private static final boolean THROW_EXCEPTION_ON_OCCURS_CHECK = true;
 
-    private static final boolean USE_OCCURS_CHECK_BY_DEFAULT = true;
+    private static final boolean USE_OCCURS_CHECK_BY_DEFAULT = false;
 
     public static Optional<PrologSubstitution> computeMGU(
         final PrologTerm term1,
         final PrologTerm term2
     ) {
-        return MGUComputer.computeMGU(term1, term2, MGUComputer.USE_OCCURS_CHECK_BY_DEFAULT, MGUComputer.PREFER_NON_ABSTRACT_REPLACEMENT);
+        return MGUComputer.computeMGU(
+            term1,
+            term2,
+            MGUComputer.USE_OCCURS_CHECK_BY_DEFAULT,
+            MGUComputer.PREFER_NON_ABSTRACT_REPLACEMENT
+        );
+    }
+
+    public static Optional<PrologSubstitution> computeMGU(
+        final PrologTerm term1,
+        final PrologTerm term2,
+        final boolean useOccursCheck
+    ) {
+        return MGUComputer.computeMGU(
+            term1,
+            term2,
+            useOccursCheck,
+            MGUComputer.PREFER_NON_ABSTRACT_REPLACEMENT
+        );
     }
 
     public static Optional<PrologSubstitution> computeMGUWithOnlyFreshVariables(

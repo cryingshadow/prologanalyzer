@@ -335,6 +335,17 @@ public abstract class Terms {
         return newFirstConjunct;
     }
 
+    public static PrologSubstitution toFreshVariables(final PrologTerm term, final FreshNameGenerator fridge) {
+        final PrologSubstitution substitution = new PrologSubstitution();
+        for (final PrologVariable variable : Terms.createSetOfAllNonAbstractVariables(term)) {
+            substitution.put(
+                variable,
+                new PrologVariable(fridge.getFreshName(Terms.DEFAULT_NON_ABSTRACT_VARIABLE_NAME))
+            );
+        }
+        return substitution;
+    }
+
     public static String toLaTeX(final PrologTerm term, final KnowledgeBase knowledge) {
         if (term == null) {
             return "empty";

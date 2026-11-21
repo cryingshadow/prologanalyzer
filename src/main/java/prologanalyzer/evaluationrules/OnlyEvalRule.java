@@ -51,12 +51,15 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
                     mgu;
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<GoalElement> newGoal = new ArrayList<GoalElement>();
+        final PrologSubstitution refresher;
         if (body.isEmpty()) {
+            refresher = new PrologSubstitution();
             newGoal.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
         } else {
+            refresher = Terms.toFreshVariables(body.get(), global.fridge());
             newGoal.add(
                 new TermGoalElement(
-                    mguWithAdditionalRenamings.apply(
+                    mguWithAdditionalRenamings.append(refresher).apply(
                         Terms.replaceFirstConjunct(
                             firstGoal.getTerm(),
                             Terms.transformWithScope(body.get(), firstGoal.getScope())
@@ -70,7 +73,7 @@ public class OnlyEvalRule implements SymbolicEvaluationRule {
             new SymbolicEvaluationResult(
                 new AbstractState(
                     newGoal,
-                    state.knowledge.apply(mgu, firstGoal.getClause())
+                    state.knowledge.apply(mgu, firstGoal.getClause(), refresher)
                 ).restrictKnowledgeToExistingVariables(),
                 mguWithAdditionalRenamings
             )

@@ -12,17 +12,6 @@ public class EvalRule implements SymbolicEvaluationRule {
 
     public static final EvalRule TERMINATION_EVAL = new EvalRule(true);
 
-    private static PrologTerm toFreshVariables(final PrologTerm term, final FreshNameGenerator fridge) {
-        final PrologSubstitution substitution = new PrologSubstitution();
-        for (final PrologVariable variable : Terms.createSetOfAllNonAbstractVariables(term)) {
-            substitution.put(
-                variable,
-                new PrologVariable(fridge.getFreshName(Terms.DEFAULT_NON_ABSTRACT_VARIABLE_NAME))
-            );
-        }
-        return substitution.apply(term);
-    }
-
     private final boolean termination;
 
     private EvalRule(final boolean termination) {
@@ -63,12 +52,15 @@ public class EvalRule implements SymbolicEvaluationRule {
         final Optional<PrologTerm> body = firstGoal.getClause().body();
         final List<SymbolicEvaluationResult> result = new ArrayList<SymbolicEvaluationResult>();
         final List<GoalElement> newGoalEval = new ArrayList<GoalElement>();
+        final PrologSubstitution refresher;
         if (body.isEmpty()) {
+            refresher = new PrologSubstitution();
             newGoalEval.add(new TermGoalElement(mguWithAdditionalRenamings.apply(tailOfConjunction)));
         } else {
+            refresher = Terms.toFreshVariables(body.get(), global.fridge());
             newGoalEval.add(
                 new TermGoalElement(
-                    mguWithAdditionalRenamings.apply(
+                    mguWithAdditionalRenamings.append(refresher).apply(
                         Terms.replaceFirstConjunct(
                             firstGoal.getTerm(),
                             Terms.transformWithScope(body.get(), firstGoal.getScope())
@@ -82,14 +74,15 @@ public class EvalRule implements SymbolicEvaluationRule {
             new SymbolicEvaluationResult(
                 new AbstractState(
                     newGoalEval,
-                    state.knowledge.apply(mgu, firstGoal.getClause())
+                    state.knowledge.apply(mgu, firstGoal.getClause(), refresher)
                 ).restrictKnowledgeToExistingVariables(),
                 mguWithAdditionalRenamings
             )
         );
         final List<GoalElement> newGoalBacktrack = new ArrayList<GoalElement>(state.goal);
         newGoalBacktrack.remove(0);
-        final PrologTerm freshClauseHead = EvalRule.toFreshVariables(firstGoal.getClause().head(), global.fridge());
+        final PrologTerm head = firstGoal.getClause().head();
+        final PrologTerm freshClauseHead = Terms.toFreshVariables(head, global.fridge()).apply(head);
         result.add(
             new SymbolicEvaluationResult(
                 new AbstractState(

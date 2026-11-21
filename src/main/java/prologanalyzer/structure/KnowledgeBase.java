@@ -279,7 +279,7 @@ public class KnowledgeBase {
             return mgu.append(renaming);
         }
         final Set<PrologAbstractVariable> newGround = this.computeGroundAfterSubstitution(mgu);
-        final Set<PrologVariable> newFree = this.computeFreeAfterUnification(mgu, clause);
+        final Set<PrologVariable> newFree = this.computeFreeAfterUnification(mgu, clause, new PrologSubstitution());
         final Set<PrologVariable> toRename =
             new LinkedHashSet<PrologVariable>(Terms.createSetOfAllVariables(tailOfConjunction));
         if (clause.body().isPresent()) {
@@ -297,7 +297,11 @@ public class KnowledgeBase {
         return mgu.append(renaming);
     }
 
-    public KnowledgeBase apply(final PrologSubstitution mgu, final PrologClause clause) {
+    public KnowledgeBase apply(
+        final PrologSubstitution mgu,
+        final PrologClause clause,
+        final PrologSubstitution refresher
+    ) {
         final PrologSubstitution mguOnGround = this.restrictToGround(mgu);
         return new KnowledgeBase(
             this.computeGroundAfterSubstitution(mgu),
@@ -306,7 +310,7 @@ public class KnowledgeBase {
             .stream()
             .map(pair -> new TermPair(mguOnGround.apply(pair.term1()), mguOnGround.apply(pair.term2())))
             .collect(Collectors.toCollection(TreeSet::new)),
-            this.computeFreeAfterUnification(mgu, clause)
+            this.computeFreeAfterUnification(mgu, clause, refresher)
         );
     }
 
@@ -325,7 +329,7 @@ public class KnowledgeBase {
     public KnowledgeBase cleanAndRestrictToVariables(final Set<PrologVariable> variables) {
         final Set<TermPair> nonUnifiable = new LinkedHashSet<TermPair>();
         outer: for (final TermPair pair : this.nonUnifiable) {
-            final Optional<PrologSubstitution> optionalMGU = MGUComputer.computeMGU(pair.term1(), pair.term2());
+            final Optional<PrologSubstitution> optionalMGU = MGUComputer.computeMGU(pair.term1(), pair.term2(), true);
             if (optionalMGU.isEmpty()) {
                 continue;
             }
@@ -342,7 +346,7 @@ public class KnowledgeBase {
             }
             for (final TermPair in : nonUnifiable) {
                 final Optional<PrologSubstitution> secondMGU =
-                    MGUComputer.computeMGU(mgu.apply(in.term1()), mgu.apply(in.term2()));
+                    MGUComputer.computeMGU(mgu.apply(in.term1()), mgu.apply(in.term2()), true);
                 if (secondMGU.isPresent() && secondMGU.get().keySet().stream().allMatch(Terms::isNonAbstractVariable)) {
                     continue outer;
                 }
@@ -437,6 +441,7 @@ public class KnowledgeBase {
                 MGUComputer.computeMGUWithOnlyFreshVariables(
                     restricted.apply(pair.term1()),
                     restricted.apply(pair.term2()),
+                    true,
                     new FreshNameGenerator()
                 );
             if (optionalMGU.isPresent()) {
@@ -513,14 +518,14 @@ public class KnowledgeBase {
                     .collect(Collectors.toSet())
                 );
             final Optional<PrologSubstitution> optionalMGU =
-                MGUComputer.computeMGUWithOnlyFreshVariables(matched.term1(), matched.term2(), fridge);
+                MGUComputer.computeMGUWithOnlyFreshVariables(matched.term1(), matched.term2(), true, fridge);
             if (optionalMGU.isEmpty()) {
                 continue;
             }
             final PrologSubstitution mgu = optionalMGU.get();
             for (final TermPair parentPair : parentKnowledge.nonUnifiable) {
                 final Optional<PrologSubstitution> secondMGU =
-                    MGUComputer.computeMGU(mgu.apply(parentPair.term1()), mgu.apply(parentPair.term2()));
+                    MGUComputer.computeMGU(mgu.apply(parentPair.term1()), mgu.apply(parentPair.term2()), true);
                 if (secondMGU.isEmpty()) {
                     continue;
                 }
@@ -577,8 +582,13 @@ public class KnowledgeBase {
         );
     }
 
-    private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu, final PrologClause clause) {
+    private Set<PrologVariable> computeFreeAfterUnification(
+        final PrologSubstitution originalMgu,
+        final PrologClause clause,
+        final PrologSubstitution refresher
+    ) {
         final Set<PrologVariable> result = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
+        final PrologSubstitution mgu = originalMgu.append(refresher);
         result.addAll(this.free);
         final PrologSubstitution mguOnFree = this.restrictToFree(mgu);
         final Set<PrologVariable> newFree = new LinkedHashSet<PrologVariable>(this.free);
@@ -599,11 +609,15 @@ public class KnowledgeBase {
             .collect(Collectors.toSet())
         );
         result.addAll(substituteVariables);
-        final Set<PrologVariable> headVariables = Terms.createSetOfAllVariables(clause.head());
-        if (clause.body().isPresent()) {
-            headVariables.removeAll(Terms.createSetOfAllVariables(clause.body().get()));
-        }
-        result.addAll(headVariables);
+
+        final Set<PrologVariable> bodyVariables =
+            new LinkedHashSet<>(
+                clause.body().isPresent() ?
+                    Terms.createSetOfAllVariables(refresher.apply(clause.body().get())) :
+                        Set.of()
+            );
+        bodyVariables.removeAll(Terms.createSetOfAllVariables(refresher.apply(clause.head())));
+        result.addAll(bodyVariables);
         return result;
     }
 
