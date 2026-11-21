@@ -8,9 +8,11 @@ import prologparser.*;
 
 public class FocusRule implements SymbolicEvaluationRule {
 
-    public static final FocusRule INSTANCE = new FocusRule();
+    private final int numberOfConjuncts;
 
-    private FocusRule() {}
+    public FocusRule(final int numberOfConjuncts) {
+        this.numberOfConjuncts = numberOfConjuncts;
+    }
 
     @Override
     public List<SymbolicEvaluationResult> apply(final AbstractState state, final GlobalState global) {
@@ -18,17 +20,26 @@ public class FocusRule implements SymbolicEvaluationRule {
             return List.of();
         }
         final PrologTerm term = state.goal.getFirst().getTerm();
-        if (!Terms.isConjunction(term) || Terms.getArity(term) < 2 || !Terms.computeActiveCuts(term).isEmpty()) {
+        if (!Terms.isConjunction(term)) {
             return List.of();
         }
-        final PrologTerm headOfConjunction = Terms.getFirstConjunct(term);
-        if (Terms.isCut(headOfConjunction)) {
+        final List<PrologTerm> conjuncts = Terms.getConjuncts(term);
+        if (conjuncts.size() <= this.numberOfConjuncts) {
             return List.of();
         }
+        if (!Terms.computeActiveCuts(term).isEmpty()) {
+            if (
+                !Terms.isCut(conjuncts.get(this.numberOfConjuncts - 1))
+                || !conjuncts.stream().skip(this.numberOfConjuncts).allMatch(Terms::isCut)
+            ) {
+                return List.of();
+            }
+        }
+        final PrologTerm focus = Terms.createConjunction(conjuncts.stream().limit(this.numberOfConjuncts).toList());
         return List.of(
             new SymbolicEvaluationResult(
                 new AbstractState(
-                    List.of(new TermGoalElement(headOfConjunction)),
+                    List.of(new TermGoalElement(focus)),
                     state.knowledge
                 ).restrictKnowledgeToExistingVariables(),
                 new PrologSubstitution()

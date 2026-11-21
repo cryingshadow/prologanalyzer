@@ -297,6 +297,19 @@ public class KnowledgeBase {
         return mgu.append(renaming);
     }
 
+    public KnowledgeBase apply(final PrologSubstitution mgu) {
+        final PrologSubstitution mguOnGround = this.restrictToGround(mgu);
+        return new KnowledgeBase(
+            this.computeGroundAfterSubstitution(mgu),
+            this
+            .nonUnifiable
+            .stream()
+            .map(pair -> new TermPair(mguOnGround.apply(pair.term1()), mguOnGround.apply(pair.term2())))
+            .collect(Collectors.toCollection(TreeSet::new)),
+            this.computeFreeAfterUnification(mgu)
+        );
+    }
+
     public KnowledgeBase apply(
         final PrologSubstitution mgu,
         final PrologClause clause,
@@ -582,6 +595,30 @@ public class KnowledgeBase {
         );
     }
 
+    private Set<PrologVariable> computeFreeAfterUnification(final PrologSubstitution mgu) {
+        final Set<PrologVariable> result = new TreeSet<PrologVariable>(PrologTermComparator.INSTANCE);
+        result.addAll(this.free);
+        final PrologSubstitution mguOnFree = this.restrictToFree(mgu);
+        final Set<PrologVariable> newFree = new LinkedHashSet<PrologVariable>(this.free);
+        final PrologSubstitution mguOnNonFreeNonAbstract =
+            mgu.restrictToNonAbstractVariables().restrictToComplement(newFree);
+        final Set<PrologVariable> substituteVariables =
+            mguOnFree
+            .values()
+            .stream()
+            .flatMap(term -> Terms.createSetOfAllNonAbstractVariables(term).stream())
+            .collect(Collectors.toSet());
+        substituteVariables.removeAll(
+            mguOnNonFreeNonAbstract
+            .values()
+            .stream()
+            .flatMap(term -> Terms.createSetOfAllNonAbstractVariables(term).stream())
+            .collect(Collectors.toSet())
+        );
+        result.addAll(substituteVariables);
+        return result;
+    }
+
     private Set<PrologVariable> computeFreeAfterUnification(
         final PrologSubstitution originalMgu,
         final PrologClause clause,
@@ -609,7 +646,6 @@ public class KnowledgeBase {
             .collect(Collectors.toSet())
         );
         result.addAll(substituteVariables);
-
         final Set<PrologVariable> bodyVariables =
             new LinkedHashSet<>(
                 clause.body().isPresent() ?

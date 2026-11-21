@@ -71,6 +71,19 @@ public abstract class Terms {
         return false;
     }
 
+    public static PrologTerm createConjunction(final List<PrologTerm> conjuncts) {
+        if (conjuncts.isEmpty()) {
+            return null;
+        }
+        if (conjuncts.size() == 1) {
+            return conjuncts.getFirst();
+        }
+        return new PrologTerm(
+            ",",
+            List.of(conjuncts.getFirst(), Terms.createConjunction(conjuncts.subList(1, conjuncts.size())))
+        );
+    }
+
     public static List<PrologTerm> createConjunctionListOfPredications(final PrologTerm term) {
         return Terms.createConjunctionListOfPredications(term, new ArrayList<PrologTerm>());
     }

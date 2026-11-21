@@ -111,7 +111,8 @@ public class InstanceRule implements SymbolicEvaluationRule {
                         childElement.getTerm(),
                         parentKnowledge,
                         childKnowledge,
-                        matcher
+                        matcher,
+                        scopeMatcher
                     );
                 } else {
                     return false;
@@ -125,7 +126,8 @@ public class InstanceRule implements SymbolicEvaluationRule {
                 childElement.getTerm(),
                 parentKnowledge,
                 childKnowledge,
-                matcher
+                matcher,
+                scopeMatcher
             );
         } else {
             return false;
@@ -137,7 +139,8 @@ public class InstanceRule implements SymbolicEvaluationRule {
         final PrologTerm childTerm,
         final KnowledgeBase parentKnowledge,
         final KnowledgeBase childKnowledge,
-        final PrologSubstitution matcher
+        final PrologSubstitution matcher,
+        final Map<Integer, Integer> scopeMatcher
     ) {
         if (Terms.isVariable(childTerm)) {
             if (matcher.containsKey(childTerm)) {
@@ -160,7 +163,13 @@ public class InstanceRule implements SymbolicEvaluationRule {
             if (Terms.isCut(parentTerm)) {
                 if (childTerm instanceof LabeledCut) {
                     if (parentTerm instanceof LabeledCut) {
-                        return ((LabeledCut)parentTerm).scope == ((LabeledCut)childTerm).scope;
+                        final int parentScope = ((LabeledCut)parentTerm).scope;
+                        final int childScope = ((LabeledCut)childTerm).scope;
+                        if (scopeMatcher.containsKey(childScope)) {
+                            return parentScope == scopeMatcher.get(childScope);
+                        }
+                        scopeMatcher.put(childScope, parentScope);
+                        return true;
                     } else {
                         return false;
                     }
@@ -178,7 +187,8 @@ public class InstanceRule implements SymbolicEvaluationRule {
                         childTerm.arguments.get(i),
                         parentKnowledge,
                         childKnowledge,
-                        matcher
+                        matcher,
+                        scopeMatcher
                     )
                 ) {
                     return false;

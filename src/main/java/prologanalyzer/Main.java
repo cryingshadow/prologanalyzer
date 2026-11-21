@@ -30,13 +30,14 @@ public class Main {
         final SymbolicEvaluationStrategy strategy =
             switch (mode) {
             case TERMINATION -> new TerminationStrategy(7, timeout);
-            case NON_TERMINATION -> new NonTerminationStrategy(7, timeout);
+            case NON_TERMINATION -> new NonTerminationStrategy(7, 500, timeout);
             default -> throw new IllegalStateException("Mode must be provided!");
             };
         final PrologProgram program = new PrologParser(new FileReader(options.get(Flag.INPUT))).parse();
-        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph = strategy.evaluate(program);
+        final PrologProgram transformed = PrologBuiltInPredicates.transform(program);
+        final Graph<AbstractState, SymbolicEvaluationEdgeLabel> graph = strategy.evaluate(transformed);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(options.get(Flag.OUTPUT)))) {
-            TRSTransformer.writeTRS(graph, mode, program, writer);
+            TRSTransformer.writeTRS(graph, mode, transformed, writer);
         }
         if (options.containsKey(Flag.DOT)) {
             DOTWriter.writeDOTFile(graph, true, new File(options.get(Flag.DOT)));

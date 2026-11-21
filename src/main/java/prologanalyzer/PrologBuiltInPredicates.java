@@ -2,13 +2,99 @@ package prologanalyzer;
 
 import java.util.*;
 
+import prologanalyzer.structure.*;
 import prologparser.*;
 
 public class PrologBuiltInPredicates extends LinkedHashMap<String, Integer> {
 
+    public static final FunctionSymbol FAIL = new FunctionSymbol("fail", 0);
+
     public static final PrologBuiltInPredicates INSTANCE = new PrologBuiltInPredicates();
 
+    public static final FunctionSymbol UNIFY = new FunctionSymbol("=", 2);
+
     private static final long serialVersionUID = 1L;
+
+    public static PrologProgram transform(final PrologProgram program) {
+        if (program.clauses().stream().anyMatch(clause -> Terms.getFunctionSymbol(clause.head()).equals(PrologBuiltInPredicates.UNIFY))) {
+            final FreshNameGenerator fridge =
+                new FreshNameGenerator(PrologBuiltInPredicates.createSetOfAllNames(program));
+            final String unifyName = fridge.getFreshName("unify");
+            return new PrologProgram(
+                program.clauses().stream().map(clause ->
+                    new PrologClause(
+                        PrologBuiltInPredicates.transformUnify(clause.head(), unifyName),
+                        clause.body().map(body -> PrologBuiltInPredicates.transformUnify(body, unifyName))
+                    )
+                ).toList(),
+                program.directives().stream().map(directive ->
+                    PrologBuiltInPredicates.transformUnify(directive, unifyName)
+                ).toList(),
+                PrologBuiltInPredicates.transformUnify(program.operators(), unifyName),
+                program.comments()
+            );
+        }
+        return program;
+    }
+
+    private static void addAllNames(final PrologTerm term, final Set<String> names) {
+        names.add(term.name);
+        for (final PrologTerm argument : term.arguments) {
+            PrologBuiltInPredicates.addAllNames(argument, names);
+        }
+    }
+
+    private static Set<String> createSetOfAllNames(final PrologProgram program) {
+        final Set<String> result = new LinkedHashSet<String>();
+        for (final PrologClause clause : program.clauses()) {
+            PrologBuiltInPredicates.addAllNames(clause.head(), result);
+            if (clause.body().isPresent()) {
+                PrologBuiltInPredicates.addAllNames(clause.body().get(), result);
+            }
+        }
+        for (final PrologTerm directive : program.directives()) {
+            PrologBuiltInPredicates.addAllNames(directive, result);
+        }
+        result.addAll(program.operators().keySet());
+        return result;
+    }
+
+    private static OperatorSet transformUnify(final OperatorSet operators, final String unifyName) {
+        if (operators.containsKey("=")) {
+            final OperatorData data = operators.get("=");
+            if (
+                data.containsKey(OperatorFixity.XFX)
+                || data.containsKey(OperatorFixity.YFX)
+                || data.containsKey(OperatorFixity.XFY)
+            ) {
+                final OperatorSet result = new OperatorSet();
+                result.putAll(operators);
+                result.put(unifyName, data);
+                return result;
+            }
+        }
+        return operators;
+    }
+
+    private static PrologTerm transformUnify(final PrologTerm term, final String unifyName) {
+        if (PrologBuiltInPredicates.UNIFY.equals(Terms.getFunctionSymbol(term))) {
+            return new PrologTerm(
+                unifyName,
+                term.arguments.stream().map(argument ->
+                    PrologBuiltInPredicates.transformUnify(argument, unifyName)
+                ).toList()
+            );
+        }
+        if (term.arguments.isEmpty()) {
+            return term;
+        }
+        return new PrologTerm(
+            term.name,
+            term.arguments.stream().map(argument ->
+                PrologBuiltInPredicates.transformUnify(argument, unifyName)
+            ).toList()
+        );
+    }
 
     private PrologBuiltInPredicates() {
         super();

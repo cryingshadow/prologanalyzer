@@ -23,8 +23,9 @@ public abstract class QueryParser {
     ) {
         final int indexOpen = query.indexOf('(');
         if (indexOpen < 0) {
+            final int end = query.trim().endsWith(".") ? query.lastIndexOf('.') : query.length();
             return new AbstractState(
-                List.of(new TermGoalElement(new PrologTerm(query.substring(0, query.lastIndexOf('.')), List.of()))),
+                List.of(new TermGoalElement(new PrologTerm(query.substring(0, end).trim(), List.of()))),
                 new KnowledgeBase()
             );
         }
